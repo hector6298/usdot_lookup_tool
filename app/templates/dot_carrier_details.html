@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Carrier Details - DOT {{ carrier.usdot }}</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        .container {
+            max-width: 800px;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            color: #333;
+        }
+        .info-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .info-table th, .info-table td {
+            padding: 10px;
+            border: 1px solid #ddd;
+            text-align: left;
+        }
+        .info-table th {
+            background-color: #007BFF;
+            color: white;
+        }
+        .info-table tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        .back-link {
+            display: block;
+            margin-top: 20px;
+            text-decoration: none;
+            color: #007BFF;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Carrier Details - DOT {{ carrier.usdot }}</h1>
+    <table class="info-table">
+        <tr>
+            <th>Legal Name</th>
+            <td>{{ carrier.legal_name }}</td>
+        </tr>
+        <tr>
+            <th>DBA Name</th>
+            <td>{{ carrier.dba_name or 'N/A' }}</td>
+        </tr>
+        <tr>
+            <th>USDOT Status</th>
+            <td>{{ carrier.usdot_status }}</td>
+        </tr>
+        <tr>
+            <th>Physical Address</th>
+            <td>{{ carrier.physical_address }}</td>
+        </tr>
+        <tr>
+            <th>Mailing Address</th>
+            <td>{{ carrier.mailing_address }}</td>
+        </tr>
+        <tr>
+            <th>Phone</th>
+            <td>{{ carrier.phone }}</td>
+        </tr>
+        <tr>
+            <th>Operating Authority Status</th>
+            <td>{{ carrier.operating_authority_status }}</td>
+        </tr>
+        <tr>
+            <th>Carrier Operations</th>
+            <td>{{ carrier.carrier_operation }}</td>
+        </tr>
+        <tr>
+            <th>Cargo Carried</th>
+            <td>{{ carrier.cargo_carried }}</td>
+        </tr>
+        <tr>
+            <th>Power Units</th>
+            <td>{{ carrier.power_units }}</td>
+        </tr>
+        <tr>
+            <th>Drivers</th>
+            <td>{{ carrier.drivers }}</td>
+        </tr>
+        <tr>
+            <th>Latest Update</th>
+            <td>{{ carrier.latest_update }}</td>
+        </tr>
+        <tr>
+            <th>More Details</th>
+            <td><a href="{{ carrier.url }}" target="_blank">Official FMCSA Profile</a></td>
+        </tr>
+    </table>
+
+    <a href="/" class="back-link">⬅ Back to Home</a>
+</div>
+
+</body>
+</html>

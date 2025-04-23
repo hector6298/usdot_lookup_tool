@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>OCR Upload</title>
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <style>
+        body {
+            background: linear-gradient(135deg, #74EBD5, #ACB6E5);
+            font-family: 'Roboto', sans-serif;
+        }
+        .container {
+            max-width: 800px;
+            margin-top: 40px;
+        }
+        .table th, .table td {
+            vertical-align: middle;
+            font-size: 0.9rem;
+        }
+        .dot-link {
+            text-decoration: none;
+            font-weight: bold;
+        }
+        .dot-link:hover {
+            color: #007bff;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1 class="text-center">OCR Image Upload</h1>
+    
+    <div class="card p-4 shadow-sm">
+        <h4>Upload Images for OCR</h4>
+        <form id="upload-form" enctype="multipart/form-data">
+            <div class="mb-3">
+                <input type="file" id="file-input" class="form-control" name="files" multiple accept="image/*">
+            </div>
+            <button type="submit" class="btn btn-primary">Upload</button>
+        </form>
+    </div>
+    <div id="status" style="margin-top: 20px;"></div>
+    {% if result_texts %}
+    <div class="card mt-4 p-4 shadow-sm">
+        <h4>Extracted Texts:</h4>
+        {% for text in result_texts %}
+        <textarea class="form-control mb-3" rows="5" readonly>{{ text }}</textarea>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if usdots %}
+    <div class="alert alert-success mt-4">
+        <h5>DOT Numbers Found!</h5>
+        <ul>
+            {% for dot in usdots %}
+            <li>{{ dot }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+    <!-- Table Results section -->
+    {% if carriers_data %}
+    <div class="card mt-4 p-4 shadow-sm">
+        <h4>DOT Number Records</h4>
+        <table class="table table-bordered table-hover">
+            <thead class="table-light">
+            <tr>
+                <th style="font-size: small;">DOT Number</th>
+                <th style="font-size: small;">Legal Name</th>
+                <th style="font-size: small;">Phone Number</th>
+                <th style="font-size: small;">Mailing Address</th>
+                <th style="font-size: small;">Created At</th>
+                <th style="font-size: small;">Carrier Interested</th>
+                <th style="font-size: small;">Client Contacted</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for carrier in carriers_data %}
+            <tr>
+                <td style="font-size: small;">
+                <a href="{{ url_for('dot_carrier_details', dot_number=carrier.usdot) }}" class="dot-link">
+                    {{ carrier.usdot }}
+                </a>
+                </td>
+                <td style="font-size: small;">{{ carrier.legal_name }}</td>
+                <td style="font-size: small;">{{ carrier.phone }}</td>
+                <td style="font-size: small;">{{ carrier.mailing_address }}</td>
+                <td style="font-size: small;">{{ carrier.max_ocr_timestamp }}</td>
+                <td style="font-size: small;">
+                <input type="checkbox" class="form-check-input checkbox-track" 
+                       data-usdot="{{ carrier.usdot }}" 
+                       data-field="carrier_interested" 
+                       {% if carrier.carrier_interested %}checked{% endif %}>
+                </td>
+                <td style="font-size: small;">
+                <input type="checkbox" class="form-check-input checkbox-track" 
+                       data-usdot="{{ carrier.usdot }}" 
+                       data-field="carrier_contacted" 
+                       {% if carrier.carrier_contacted %}checked{% endif %}>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        <div class="d-flex justify-content-end mt-3">
+            <button id="revert-button" class="btn btn-secondary me-2" disabled>Revert</button>
+            <button id="submit-button" class="btn btn-primary" disabled>Submit</button>
+        </div>
+    </div>
+
+    {% else %}
+    <div class="alert alert-warning mt-4">
+        <p>No OCR results yet! Upload an image to start showing some results.</p>
+    </div>
+    {% endif %}
+
+    <!-- Navigation controls for the table -->
+    <nav aria-label="Page navigation" class="mt-4">
+        <ul class="pagination justify-content-center">
+            {% if current_page > 1 %}
+            <li class="page-item">
+                <a class="page-link" href="/dashboard?page={{ current_page - 1 }}">Previous</a>
+            </li>
+            {% else %}
+            <li class="page-item disabled">
+                <span class="page-link">Previous</span>
+            </li>
+            {% endif %}
+    
+            {% for page_num in range(1, total_pages + 1) %}
+            <li class="page-item {% if page_num == current_page %}active{% endif %}">
+                <a class="page-link" href="/dashboard?page={{ page_num }}">{{ page_num }}</a>
+            </li>
+            {% endfor %}
+    
+            {% if current_page < total_pages %}
+            <li class="page-item">
+                <a class="page-link" href="/dashboard?page={{ current_page + 1 }}">Next</a>
+            </li>
+            {% else %}
+            <li class="page-item disabled">
+                <span class="page-link">Next</span>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+</div>
+
+<!-- Link to external JavaScript file -->
+<script src="/static/update_carrier_engagement.js"></script>
+<script src="/static/upload.js"></script>
+
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+</body>
+</html>

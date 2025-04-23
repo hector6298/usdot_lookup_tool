@@ -1,0 +1,16 @@
+fastapi
+uvicorn
+pillow
+psycopg2-binary
+sqlmodel
+python-multipart
+jinja2
+google-cloud-vision
+flatten-dict
+python-safer
+pydantic
+Authlib==1.2.1
+itsdangerous==2.1.2
+starlette==0.27.0
+httpx==0.25.2
+alembic
