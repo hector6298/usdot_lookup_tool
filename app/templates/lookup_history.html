@@ -86,7 +86,7 @@
         <ul class="pagination justify-content-center">
             {% if current_page > 1 %}
             <li class="page-item">
-                <a class="page-link" href="/dashboard?page={{ current_page - 1 }}">Previous</a>
+                <a class="page-link" href="/lookup_history?page={{ current_page - 1 }}">Previous</a>
             </li>
             {% else %}
             <li class="page-item disabled">
@@ -96,13 +96,13 @@
     
             {% for page_num in range(1, total_pages + 1) %}
             <li class="page-item {% if page_num == current_page %}active{% endif %}">
-                <a class="page-link" href="/dashboard?page={{ page_num }}">{{ page_num }}</a>
+                <a class="page-link" href="/lookup_history?page={{ page_num }}">{{ page_num }}</a>
             </li>
             {% endfor %}
     
             {% if current_page < total_pages %}
             <li class="page-item">
-                <a class="page-link" href="/dashboard?page={{ current_page + 1 }}">Next</a>
+                <a class="page-link" href="/lookup_history?page={{ current_page + 1 }}">Next</a>
             </li>
             {% else %}
             <li class="page-item disabled">
