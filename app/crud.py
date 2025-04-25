@@ -9,7 +9,7 @@ from fastapi import HTTPException
 # Set up a module-level logger
 logger = logging.getLogger(__name__)
 
-def save_ocr_results_bulk(db: Session, ocr_results: list[OCRResultCreate]):
+def save_ocr_results_bulk(db: Session, ocr_results: list[OCRResultCreate]) -> list[OCRResult]:
     """Saves multiple OCR results to the database."""
     logger.info("🔍 Saving multiple OCR results to the database.")
     ocr_records = []
@@ -62,7 +62,7 @@ def save_ocr_results_bulk(db: Session, ocr_results: list[OCRResultCreate]):
 
 
 # OCR CRUD operations
-def save_single_ocr_result(db: Session, ocr_result: OCRResultCreate):
+def save_single_ocr_result(db: Session, ocr_result: OCRResultCreate) -> OCRResult:
     """Saves OCR result to the database."""
     # Extract the 10-digit number following "DOT"
     logger.info("🔍 Extracting DOT number from OCR result.")
@@ -98,7 +98,7 @@ def save_single_ocr_result(db: Session, ocr_result: OCRResultCreate):
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
-def get_ocr_results(db: Session):
+def get_ocr_results(db: Session) -> list[OCRResult]:
     """Retrieves all OCR results from the database."""
     logger.info("🔍 Fetching all OCR results from the database.")
     results = db.query(OCRResult).all()
@@ -110,7 +110,7 @@ def get_ocr_results(db: Session):
 
     return results
 
-def get_ocr_result_by_id(db: Session, result_id: int):
+def get_ocr_result_by_id(db: Session, result_id: int) -> OCRResult:
     """Retrieves a single OCR result by ID."""
     logger.info(f"🔍 Fetching OCR result with ID: {result_id}")
     result = db.query(OCRResult).filter(OCRResult.id == result_id).first()
@@ -122,7 +122,7 @@ def get_ocr_result_by_id(db: Session, result_id: int):
 
     return result
 
-def get_orc_results_with_valid_dot(db: Session):
+def get_orc_results_with_valid_dot(db: Session) -> list[OCRResult]:
     """Retrieves all OCR results with a valid DOT number."""
     logger.info("🔍 Fetching all OCR results with a valid DOT number.")
     results = db.query(OCRResult).filter(OCRResult.dot_reading != None).all()
@@ -134,7 +134,7 @@ def get_orc_results_with_valid_dot(db: Session):
 
     return results
 
-def get_paginated_ocr_results(db: Session, page: int = 1, page_size: int = 10, valid_dot_only: bool = True):
+def get_paginated_ocr_results(db: Session, page: int = 1, page_size: int = 10, valid_dot_only: bool = True) -> dict:
     """Retrieves paginated OCR results with a valid DOT number."""
     logger.info(f"🔍 Fetching paginated OCR results with a valid DOT number (Page: {page}, Page Size: {page_size}).")
     offset = (page - 1) * page_size
@@ -157,7 +157,7 @@ def get_paginated_ocr_results(db: Session, page: int = 1, page_size: int = 10, v
         "total_pages": (total_count + page_size - 1) // page_size
     }
 
-def get_paginated_carrier_data(db: Session, page: int = 1, page_size: int = 10):
+def get_paginated_carrier_data(db: Session, page: int = 1, page_size: int = 10) -> dict:
     """Retrieves paginated carrier data from the database."""
     logger.info(f"🔍 Fetching paginated carrier data (Page: {page}, Page Size: {page_size}).")
     offset = (page - 1) * page_size
@@ -177,7 +177,7 @@ def get_paginated_carrier_data(db: Session, page: int = 1, page_size: int = 10):
     }
 
 # Carrier CRUD operations
-def get_carrier_data_by_dot(db: Session, dot_number: str):
+def get_carrier_data_by_dot(db: Session, dot_number: str) -> CarrierData:
     """Retrieves carrier data by DOT number."""
     logger.info(f"🔍 Searching for carrier with USDOT: {dot_number}")
     carrier = db.query(CarrierData).filter(CarrierData.usdot == dot_number).first()
@@ -189,7 +189,7 @@ def get_carrier_data_by_dot(db: Session, dot_number: str):
 
     return carrier
 
-def get_carrier_data(db: Session):
+def get_carrier_data(db: Session) -> list[CarrierData]:
     """Retrieves all carrier data from the database."""
     logger.info("🔍 Fetching all carrier data from the database.")
     carriers = db.query(CarrierData).all()
@@ -200,7 +200,7 @@ def get_carrier_data(db: Session):
         logger.warning("⚠ No carrier data found.")
     return carriers
 
-def save_carrier_data(db: Session, carrier_data: dict):
+def save_carrier_data(db: Session, carrier_data: dict) -> CarrierData:
     """Saves carrier data to the database, performing upsert based on DOT number."""
     logger.info("🔍 Saving carrier data to the database.")
 
@@ -242,7 +242,7 @@ def save_carrier_data(db: Session, carrier_data: dict):
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
-def save_carrier_data_bulk(db: Session, carrier_data: list[dict]):
+def save_carrier_data_bulk(db: Session, carrier_data: list[dict]) -> list[CarrierData]:
     """Saves multiple carrier data records to the database, performing upserts."""
     logger.info("🔍 Saving multiple carrier data records to the database.")
     carrier_records = []
@@ -298,7 +298,7 @@ def save_carrier_data_bulk(db: Session, carrier_data: list[dict]):
         logger.warning("⚠ No valid carrier records to save.")
     return []
 
-def update_carrier_engagement(db: Session, carrier_change_item: dict):
+def update_carrier_engagement(db: Session, carrier_change_item: dict) -> CarrierData:
     """Updates carrier interests based on user input."""
 
     carrier_change_item = CarrierChangeItem.model_validate(carrier_change_item)
