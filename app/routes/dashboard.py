@@ -1,7 +1,9 @@
 import logging
+import csv
+from io import StringIO
 from typing import Annotated
 from fastapi import APIRouter, Depends, Request, HTTPException, Body
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 from sqlmodel import Session
 from app.database import get_db
@@ -72,3 +74,37 @@ async def update_carrier_interests(request: Request,
     except Exception as e:
         logger.error(f"Error updating carrier interests: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+    
+
+@router.get("/export_carrier_data")
+async def export_csv(db: Session = Depends(get_db)):
+    """Export carrier data to a CSV file."""
+
+    carriers = crud.get_carrier_data(db)  # Add a CRUD function to fetch all carrier data
+    logger.info(f"📥 Exporting {len(carriers)} carriers to CSV...")
+
+    # Create a CSV in memory
+    output = StringIO()
+    writer = csv.writer(output)
+
+    # Write the header row
+    writer.writerow(["DOT Number", "Legal Name", "Phone Number", "Mailing Address", "Created At", "Carrier Interested", "Client Contacted"])
+    # Write data rows
+    for carrier in carriers:
+
+        writer.writerow([
+            carrier.usdot,
+            carrier.legal_name,
+            carrier.phone,
+            carrier.mailing_address,
+            carrier.max_ocr_timestamp,
+            carrier.carrier_interested,
+            carrier.carrier_contacted
+        ])
+    output.seek(0)
+    logger.info("📥 CSV export completed successfully.")
+    
+    # Return the CSV as a streaming response
+    response = StreamingResponse(output, media_type="text/csv")
+    response.headers["Content-Disposition"] = "attachment; filename=carrier_data.csv"
+    return response

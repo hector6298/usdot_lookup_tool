@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 from app.database import init_db
 from app.config import config
-from app.routes import dashboard, upload, dot_carrier_details, auth, home
+from app.routes import dashboard, upload, dot_carrier_details, auth, home, lookup_history
 
 # Configure Logging to Console
 logger = logging.getLogger(__name__)
@@ -40,6 +40,7 @@ app.include_router(home.router)
 app.include_router(dashboard.router)
 app.include_router(dot_carrier_details.router)
 app.include_router(upload.router)
+app.include_router(lookup_history.router)
 
 # Serve static files
 app.mount("/static", StaticFiles(directory="app/static"), name="static")

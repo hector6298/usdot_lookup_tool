@@ -1,7 +1,9 @@
 import logging
+import csv
+from io import StringIO
 from typing import Annotated
 from fastapi import APIRouter, Depends, Request, HTTPException, Body
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 from sqlmodel import Session
 from app.database import get_db
@@ -14,7 +16,7 @@ templates = Jinja2Templates(directory="app/templates")
 # Set up a module-level logger
 logger = logging.getLogger(__name__)
 
-@router.get("/lookup_history", name="dashboard")
+@router.get("/lookup_history", name="lookup_history")
 async def dashboard(request: Request, 
                     page: int = 1,
                     page_size: int = 10,
@@ -25,10 +27,42 @@ async def dashboard(request: Request,
     results = crud.get_paginated_ocr_results(db, page, page_size, valid_dot_only=False)
 
     return templates.TemplateResponse(
-        "dashboard.html", 
+        "lookup_history.html", 
         {
             "request": request, 
-            "carriers_data": results["results"],
+            "results": results["results"],
             "total_pages": results["total_pages"],
             "current_page": page,
         })
+
+@router.get("/export_lookup_history")
+async def export_csv(db: Session = Depends(get_db)):
+    """Export the lookup history to a CSV file."""
+
+    history = crud.get_ocr_results(db)  # Add a CRUD function to fetch all carrier data
+    logger.info(f"📥 Exporting {len(history)} history to CSV...")
+
+    # Create a CSV in memory
+    output = StringIO()
+    writer = csv.writer(output)
+
+    # Write the header row
+    writer.writerow(["DOT Number", "Legal Name", "Phone Number", "Mailing Address", "Created At", "Carrier Interested", "Client Contacted"])
+    # Write data rows
+    for record in history:
+
+        writer.writerow([
+            record.dot_reading,
+            record.carrier_data.legal_name if record.carrier_data else "",
+            record.carrier_data.phone if record.carrier_data else "",
+            record.carrier_data.mailing_address if record.carrier_data else "",
+            record.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
+            record.filename
+        ])
+    output.seek(0)
+    logger.info("📥 CSV export completed successfully.")
+    
+    # Return the CSV as a streaming response
+    response = StreamingResponse(output, media_type="text/csv")
+    response.headers["Content-Disposition"] = "attachment; filename=lookup_history.csv"
+    return response
