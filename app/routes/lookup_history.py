@@ -7,8 +7,8 @@ from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 from sqlmodel import Session
 from app.database import get_db
-from app.models import CarrierChangeItem, CarrierChangeRequest
 from app import crud
+from app.routes.verify_login import verify_login
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -16,7 +16,8 @@ templates = Jinja2Templates(directory="app/templates")
 # Set up a module-level logger
 logger = logging.getLogger(__name__)
 
-@router.get("/lookup_history", name="lookup_history")
+@router.get("/lookup_history", name="lookup_history",
+            dependencies=[Depends(verify_login)])
 async def dashboard(request: Request, 
                     page: int = 1,
                     page_size: int = 10,
@@ -35,7 +36,8 @@ async def dashboard(request: Request,
             "current_page": page,
         })
 
-@router.get("/export_lookup_history")
+@router.get("/export_lookup_history",
+            dependencies=[Depends(verify_login)])
 async def export_csv(db: Session = Depends(get_db)):
     """Export the lookup history to a CSV file."""
 

@@ -9,6 +9,7 @@ from app.models import OCRResultCreate, CarrierData
 from app.crud import save_ocr_results_bulk, save_carrier_data_bulk
 from app.info_extraction import cloud_ocr_from_image_file, safer_web_lookup_from_dot
 from app.config import config
+from app.routes.verify_login import verify_login
 from google.cloud import vision
 from safer import CompanySnapshot
 
@@ -27,7 +28,8 @@ safer_client = CompanySnapshot()
 router = APIRouter()
 
 
-@router.post("/upload")
+@router.post("/upload",
+             dependencies=[Depends(verify_login)])
 async def upload_file(files: list[UploadFile] = File(...), db: Session = Depends(get_db)):
     ocr_records = []  # Store OCR results before batch insert
     valid_files = []

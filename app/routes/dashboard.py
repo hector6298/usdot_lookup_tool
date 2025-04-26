@@ -3,12 +3,13 @@ import csv
 from io import StringIO
 from typing import Annotated
 from fastapi import APIRouter, Depends, Request, HTTPException, Body
-from fastapi.responses import HTMLResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, StreamingResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from sqlmodel import Session
 from app.database import get_db
-from app.models import CarrierChangeItem, CarrierChangeRequest
 from app import crud
+from app.routes.verify_login import verify_login, verify_login_json_response
+
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -16,12 +17,14 @@ templates = Jinja2Templates(directory="app/templates")
 # Set up a module-level logger
 logger = logging.getLogger(__name__)
 
-@router.get("/dashboard", name="dashboard")
+@router.get("/dashboard", name="dashboard",
+            dependencies=[Depends(verify_login)])
 async def dashboard(request: Request, 
                     page: int = 1,
                     page_size: int = 10,
                     result_ids: str = None, 
                     db: Session = Depends(get_db)):
+    
     """Render the home page with optional OCR results."""
     result_texts = []
     dot_readings = []
@@ -51,10 +54,12 @@ async def dashboard(request: Request,
         })
 
 
-@router.post("/update_carrier_interests")
+@router.post("/update_carrier_interests",
+             dependencies=[Depends(verify_login_json_response)])
 async def update_carrier_interests(request: Request,
                                     db: Session = Depends(get_db)):
     """Update carrier interests based on user input."""
+
     form_data = await request.json()
     logger.info("🔄 Updating carrier interests..."
                 f"Changes received: {form_data}")
@@ -70,14 +75,16 @@ async def update_carrier_interests(request: Request,
 
             crud.update_carrier_engagement(db, change_item)
             
-        return {"status": "ok", "message": "Changes updated successfully"}
+        return JSONResponse(status_code=200, 
+                            content={"status": "ok", "message": "Changes updated successfully"})
     except Exception as e:
         logger.error(f"Error updating carrier interests: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
     
 
-@router.get("/export_carrier_data")
-async def export_csv(db: Session = Depends(get_db)):
+@router.get("/export_carrier_data",
+            dependencies=[Depends(verify_login)])
+async def export_csv(request: Request, db: Session = Depends(get_db)):
     """Export carrier data to a CSV file."""
 
     carriers = crud.get_carrier_data(db)  # Add a CRUD function to fetch all carrier data
