@@ -8,6 +8,7 @@ class OCRResultCreate(SQLModel):
     """Schema for creating a new OCR result."""
     extracted_text: str | None = Field(default=None, max_length=250)
     filename: str = Field(nullable=False, max_length=250)
+    user_id: int = Field(nullable=False)
     
 class OCRResult(SQLModel, table=True):
     """Represents an OCR result in the database."""    
@@ -16,8 +17,9 @@ class OCRResult(SQLModel, table=True):
     dot_reading: str | None = Field(default=None, max_length=32, foreign_key="carrierdata.usdot")
     filename: str = Field(nullable=False, max_length=250)
     timestamp: datetime = Field(nullable=False)
-    
+    user_id: int = Field(nullable=False)
     carrier_data: Optional["CarrierData"] = Relationship(back_populates="ocr_results")
+
 
 class CarrierChangeItem(SQLModel):
     """Schema for carrier checkbox input."""

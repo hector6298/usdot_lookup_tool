@@ -24,8 +24,16 @@ async def dashboard(request: Request,
                     db: Session = Depends(get_db)):
     """Render the home page with optional OCR results."""
 
-    # Retrieve table with all results
-    results = crud.get_paginated_ocr_results(db, page, page_size, valid_dot_only=False)
+    user_id = request.session['userinfo']['sub']
+    logger.info(f"🔍 Fetching lookup history for user ID: {user_id}")
+    
+    # Retrieve table with paginated results
+    results = crud.get_ocr_results(db, 
+                                   user_id=user_id,
+                                   page=page, 
+                                   page_size=page_size, 
+                                   do_pagination=True,
+                                   valid_dot_only=False)
 
     return templates.TemplateResponse(
         "lookup_history.html", 
@@ -38,10 +46,17 @@ async def dashboard(request: Request,
 
 @router.get("/export_lookup_history",
             dependencies=[Depends(verify_login)])
-async def export_csv(db: Session = Depends(get_db)):
+async def export_csv(db: Session = Depends(get_db),
+                     request: Request = None):
     """Export the lookup history to a CSV file."""
 
-    history = crud.get_ocr_results(db)  # Add a CRUD function to fetch all carrier data
+    user_id = request.session['userinfo']['sub']
+    logger.info(f"🔍 Fetching lookup history for user ID: {user_id}"
+                )
+    history = crud.get_ocr_results(db, 
+                                   user_id=user_id,
+                                   do_pagination=False,
+                                   valid_dot_only=False)['results'] 
     logger.info(f"📥 Exporting {len(history)} history to CSV...")
 
     # Create a CSV in memory

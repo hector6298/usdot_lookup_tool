@@ -1,6 +1,6 @@
 import os
 import logging
-from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
+from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, Request
 from fastapi.responses import RedirectResponse
 from sqlmodel import Session
 from PIL import Image
@@ -30,7 +30,9 @@ router = APIRouter()
 
 @router.post("/upload",
              dependencies=[Depends(verify_login)])
-async def upload_file(files: list[UploadFile] = File(...), db: Session = Depends(get_db)):
+async def upload_file(files: list[UploadFile] = File(...), 
+                      request: Request = None,
+                      db: Session = Depends(get_db)):
     ocr_records = []  # Store OCR results before batch insert
     valid_files = []
     invalid_files = []
@@ -45,7 +47,9 @@ async def upload_file(files: list[UploadFile] = File(...), db: Session = Depends
             # perform OCR on image
             
             ocr_text = await cloud_ocr_from_image_file(vision_client, file)
-            ocr_record = OCRResultCreate(extracted_text=ocr_text, filename=file.filename)
+            ocr_record = OCRResultCreate(extracted_text=ocr_text, 
+                                         filename=file.filename,
+                                         user_id=request.session['userinfo']['sub'])
             ocr_records.append(ocr_record)
             valid_files.append(file.filename)
         except Exception as e:
@@ -71,7 +75,6 @@ async def upload_file(files: list[UploadFile] = File(...), db: Session = Depends
         if safer_lookups:
             _ = save_carrier_data_bulk(db, safer_lookups)
             logger.info(f"✅ Processed {len(ocr_results)} OCR results, {safer_lookups} carrier records saved.")
-
 
     # Collect all OCR result IDs
     ocr_result_ids = [result.id for result in ocr_results]

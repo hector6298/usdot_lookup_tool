@@ -28,6 +28,7 @@ async def dashboard(request: Request,
     """Render the home page with optional OCR results."""
     result_texts = []
     dot_readings = []
+    user_id = request.session['userinfo']['sub']
 
     # If result_ids are provided, fetch the OCR results from the database
     if result_ids:
@@ -40,8 +41,11 @@ async def dashboard(request: Request,
                     dot_readings.append(ocr_result.dot_reading)
 
     # Retrieve table with all results
-    carriers = crud.get_paginated_carrier_data(db, page, page_size)
-
+    carriers = crud.get_carrier_data(db, 
+                                     user_id=user_id,
+                                     page=page,
+                                     page_size=page_size,
+                                     do_pagination=True)
     return templates.TemplateResponse(
         "dashboard.html", 
         {
@@ -87,7 +91,13 @@ async def update_carrier_interests(request: Request,
 async def export_csv(request: Request, db: Session = Depends(get_db)):
     """Export carrier data to a CSV file."""
 
-    carriers = crud.get_carrier_data(db)  # Add a CRUD function to fetch all carrier data
+    user_id = request.session['userinfo']['sub']
+    logger.info(f"🔍 Fetching carrier data for user ID: {user_id}")
+
+    carriers = crud.get_carrier_data(db,
+                                     user_id=user_id,
+                                     do_pagination=False)['results'] 
+    
     logger.info(f"📥 Exporting {len(carriers)} carriers to CSV...")
 
     # Create a CSV in memory

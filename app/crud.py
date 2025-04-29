@@ -98,18 +98,6 @@ def save_single_ocr_result(db: Session, ocr_result: OCRResultCreate) -> OCRResul
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
-def get_ocr_results(db: Session) -> list[OCRResult]:
-    """Retrieves all OCR results from the database."""
-    logger.info("🔍 Fetching all OCR results from the database.")
-    results = db.query(OCRResult).all()
-
-    if results:
-        logger.info(f"✅ Found {len(results)} OCR records.")
-    else:
-        logger.warning("⚠ No OCR results found.")
-
-    return results
-
 def get_ocr_result_by_id(db: Session, result_id: int) -> OCRResult:
     """Retrieves a single OCR result by ID."""
     logger.info(f"🔍 Fetching OCR result with ID: {result_id}")
@@ -122,48 +110,77 @@ def get_ocr_result_by_id(db: Session, result_id: int) -> OCRResult:
 
     return result
 
-def get_orc_results_with_valid_dot(db: Session) -> list[OCRResult]:
-    """Retrieves all OCR results with a valid DOT number."""
-    logger.info("🔍 Fetching all OCR results with a valid DOT number.")
-    results = db.query(OCRResult).filter(OCRResult.dot_reading != None).all()
-
-    if results:
-        logger.info(f"✅ Found {len(results)} OCR records with a valid DOT number.")
-    else:
-        logger.warning("⚠ No OCR results found with a valid DOT number.")
-
-    return results
-
-def get_paginated_ocr_results(db: Session, page: int = 1, page_size: int = 10, valid_dot_only: bool = True) -> dict:
+def get_ocr_results(db: Session, 
+                    user_id: str = None, 
+                    page: int = 1, 
+                    page_size: int = 10, 
+                    do_pagination: bool = True,
+                    valid_dot_only: bool = True) -> dict:
     """Retrieves paginated OCR results with a valid DOT number."""
-    logger.info(f"🔍 Fetching paginated OCR results with a valid DOT number (Page: {page}, Page Size: {page_size}).")
+
+    logger.info(f"🔍 Fetching paginated OCR results (Page: {page}, Page Size: {page_size}).")
     offset = (page - 1) * page_size
 
+    query = db.query(OCRResult)
+    
+    if user_id:
+        logger.info(f"🔍 Filtering OCR results by user ID: {user_id}")
+        query = query.filter(OCRResult.user_id == user_id)
+    
     if valid_dot_only:
-        results = db.query(OCRResult).filter(OCRResult.dot_reading != None).offset(offset).limit(page_size).all()
-        total_count = db.query(OCRResult).filter(OCRResult.dot_reading != None).count()
+        logger.info("🔍 Filtering OCR results with a valid DOT number.")
+        query = query.filter(OCRResult.dot_reading != None)
+    
+    if do_pagination:
+        logger.info(f"🔍 Applying pagination: offset={offset}, limit={page_size}")
+        query = query.offset(offset).limit(page_size)
     else:
-        results = db.query(OCRResult).offset(offset).limit(page_size).all()
-        total_count = db.query(OCRResult).count()
+        logger.info("🔍 Pagination is disabled.")
+    
+    results = query.all()
+    total_count = query.count()
         
     if results:
-        logger.info(f"✅ Found {len(results)} OCR records on page {page}. Total records: {total_count}.")
+        logger.info(f"✅ Found {len(results)} OCR records. Total records: {total_count}.")
     else:
         logger.warning("⚠ No OCR results found with a valid DOT number on this page.")
 
     return {
         "results": results,
         "total_count": total_count,
-        "total_pages": (total_count + page_size - 1) // page_size
+        "total_pages": ((total_count + page_size - 1) // page_size) if do_pagination else 1
     }
 
-def get_paginated_carrier_data(db: Session, page: int = 1, page_size: int = 10) -> dict:
+def get_carrier_data(db: Session, 
+                     user_id: str = None, 
+                     page: int = 1, 
+                     page_size: int = 10,
+                     do_pagination: bool = True) -> dict:
     """Retrieves paginated carrier data from the database."""
     logger.info(f"🔍 Fetching paginated carrier data (Page: {page}, Page Size: {page_size}).")
     offset = (page - 1) * page_size
-    carriers = db.query(CarrierData).offset(offset).limit(page_size).all()
 
-    total_count = db.query(CarrierData).count()
+    if user_id:
+        logger.info(f"🔍 Filtering carrier data by user ID: {user_id}")
+        user_ocr_results = get_ocr_results(db, 
+                                           user_id=user_id, 
+                                           do_pagination=False, 
+                                           valid_dot_only=True)
+        dot_numbers = [result.dot_reading for result in user_ocr_results["results"]]
+        carriers = db.query(CarrierData).filter(CarrierData.usdot.in_(dot_numbers))
+        total_count = len(dot_numbers)
+    else:
+        logger.info("🔍 Fetching all carrier data without user filtering.")
+        carriers = db.query(CarrierData)
+        total_count = db.query(CarrierData).count()
+
+    if do_pagination:
+        logger.info(f"🔍 Applying pagination: offset={offset}, limit={page_size}")
+        carriers = carriers.offset(offset).limit(page_size)
+    else:
+        logger.info("🔍 Pagination is disabled.")
+
+    carriers = carriers.all()
 
     if carriers:
         logger.info(f"✅ Found {len(carriers)} carrier records on page {page}. Total records: {total_count}.")
@@ -188,17 +205,6 @@ def get_carrier_data_by_dot(db: Session, dot_number: str) -> CarrierData:
         logger.warning(f"⚠ Carrier with USDOT {dot_number} not found.")
 
     return carrier
-
-def get_carrier_data(db: Session) -> list[CarrierData]:
-    """Retrieves all carrier data from the database."""
-    logger.info("🔍 Fetching all carrier data from the database.")
-    carriers = db.query(CarrierData).all()
-
-    if carriers:
-        logger.info(f"✅ Found {len(carriers)} carrier records.")
-    else:
-        logger.warning("⚠ No carrier data found.")
-    return carriers
 
 def save_carrier_data(db: Session, carrier_data: dict) -> CarrierData:
     """Saves carrier data to the database, performing upsert based on DOT number."""
