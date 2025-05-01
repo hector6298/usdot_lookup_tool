@@ -45,39 +45,39 @@
         <table class="table table-bordered table-hover">
             <thead class="table-light">
             <tr>
-                <th style="font-size: small;">DOT Number</th>
-                <th style="font-size: small;">Legal Name</th>
-                <th style="font-size: small;">Phone Number</th>
-                <th style="font-size: small;">Mailing Address</th>
-                <th style="font-size: small;">Created At</th>
-                <th style="font-size: small;">Carrier Interested</th>
-                <th style="font-size: small;">Client Contacted</th>
+            <th style="font-size: calc(0.1em + 1.3vw);">DOT Number</th>
+            <th style="font-size: calc(0.1em + 1.3vw);">Legal Name</th>
+            <th style="font-size: calc(0.1em + 1.3vw);">Phone Number</th>
+            <th style="font-size: calc(0.1em + 1.3vw);">Mailing Address</th>
+            <th style="font-size: calc(0.1em + 1.3vw);">Created At</th>
+            <th style="font-size: calc(0.1em + 1.3vw);">Carrier Interested</th>
+            <th style="font-size: calc(0.1em + 1.3vw);">Client Contacted</th>
             </tr>
             </thead>
             <tbody>
             {% for carrier in carriers_data %}
             <tr>
-                <td style="font-size: small;">
-                <a href="{{ url_for('dot_carrier_details', dot_number=carrier.usdot) }}" class="dot-link">
-                    {{ carrier.usdot }}
-                </a>
-                </td>
-                <td style="font-size: small;">{{ carrier.legal_name }}</td>
-                <td style="font-size: small;">{{ carrier.phone }}</td>
-                <td style="font-size: small;">{{ carrier.mailing_address }}</td>
-                <td style="font-size: small;">{{ carrier.max_ocr_timestamp }}</td>
-                <td style="font-size: small;">
-                <input type="checkbox" class="form-check-input checkbox-track" 
-                       data-usdot="{{ carrier.usdot }}" 
-                       data-field="carrier_interested" 
-                       {% if carrier.carrier_interested %}checked{% endif %}>
-                </td>
-                <td style="font-size: small;">
-                <input type="checkbox" class="form-check-input checkbox-track" 
-                       data-usdot="{{ carrier.usdot }}" 
-                       data-field="carrier_contacted" 
-                       {% if carrier.carrier_contacted %}checked{% endif %}>
-                </td>
+            <td style="font-size: calc(0.1em + 1.3vw);">
+            <a href="{{ url_for('dot_carrier_details', dot_number=carrier.usdot) }}" class="dot-link">
+            {{ carrier.usdot }}
+            </a>
+            </td>
+            <td style="font-size: calc(0.1em + 1.3vw);">{{ carrier.legal_name }}</td>
+            <td style="font-size: calc(0.1em + 1.3vw);">{{ carrier.phone }}</td>
+            <td style="font-size: calc(0.1em + 1.3vw);">{{ carrier.mailing_address }}</td>
+            <td style="font-size: calc(0.1em + 1.3vw);">{{ carrier.max_ocr_timestamp }}</td>
+            <td style="font-size: calc(0.1em + 1.3vw);">
+            <input type="checkbox" class="form-check-input checkbox-track" 
+               data-usdot="{{ carrier.usdot }}" 
+               data-field="carrier_interested" 
+               {% if carrier.carrier_interested %}checked{% endif %}>
+            </td>
+            <td style="font-size: calc(0.1em + 1.3vw);">
+            <input type="checkbox" class="form-check-input checkbox-track" 
+               data-usdot="{{ carrier.usdot }}" 
+               data-field="carrier_contacted" 
+               {% if carrier.carrier_contacted %}checked{% endif %}>
+            </td>
             </tr>
             {% endfor %}
             </tbody>

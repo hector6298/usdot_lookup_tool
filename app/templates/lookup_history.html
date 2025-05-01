@@ -15,27 +15,27 @@
         <table class="table table-bordered table-hover">
             <thead class="table-light">
             <tr>
-                <th style="font-size: small;">DOT Number</th>
-                <th style="font-size: small;">Legal Name</th>
-                <th style="font-size: small;">Phone Number</th>
-                <th style="font-size: small;">Mailing Address</th>
-                <th style="font-size: small;">Created At</th>
-                <th style="font-size: small;">Filename</th>
+            <th style="font-size: calc(0.1em + 1.3vw);">DOT Number</th>
+            <th style="font-size: calc(0.1em + 1.3vw);">Legal Name</th>
+            <th style="font-size: calc(0.1em + 1.3vw);">Phone Number</th>
+            <th style="font-size: calc(0.1em + 1.3vw);">Mailing Address</th>
+            <th style="font-size: calc(0.1em + 1.3vw);">Created At</th>
+            <th style="font-size: calc(0.1em + 1.3vw);">Filename</th>
             </tr>
             </thead>
             <tbody>
             {% for ocr_result in results %}
             <tr>
-                <td style="font-size: small;">
-                <a href="{{ url_for('dot_carrier_details', dot_number=ocr_result.dot_reading) }}" class="dot-link">
-                    {{ ocr_result.dot_reading }}
-                </a>
-                </td>
-                <td style="font-size: small;">{{ ocr_result.carrier_data.legal_name }}</td>
-                <td style="font-size: small;">{{ ocr_result.carrier_data.phone }}</td>
-                <td style="font-size: small;">{{ ocr_result.carrier_data.mailing_address }}</td>
-                <td style="font-size: small;">{{ ocr_result.timestamp }}</td>
-                <td style="font-size: small;">{{ ocr_result.filename }}</td>
+            <td style="font-size: calc(0.1em + 1.3vw);">
+            <a href="{{ url_for('dot_carrier_details', dot_number=ocr_result.dot_reading) }}" class="dot-link">
+                {{ ocr_result.dot_reading }}
+            </a>
+            </td>
+            <td style="font-size: calc(0.1em + 1.3vw);">{{ ocr_result.carrier_data.legal_name }}</td>
+            <td style="font-size: calc(0.1em + 1.3vw);">{{ ocr_result.carrier_data.phone }}</td>
+            <td style="font-size: calc(0.1em + 1.3vw);">{{ ocr_result.carrier_data.mailing_address }}</td>
+            <td style="font-size: calc(0.1em + 1.3vw);">{{ ocr_result.timestamp }}</td>
+            <td style="font-size: calc(0.1em + 1.3vw);">{{ ocr_result.filename }}</td>
             </tr>
             {% endfor %}
             </tbody>
