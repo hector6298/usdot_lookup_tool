@@ -42,6 +42,8 @@ async def dashboard(request: Request,
             "results": results["results"],
             "total_pages": results["total_pages"],
             "current_page": page,
+            "user_name": request.session['userinfo']['name'],
+            "user_image": request.session['userinfo']['picture']
         })
 
 @router.get("/export_lookup_history",

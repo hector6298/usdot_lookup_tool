@@ -24,7 +24,7 @@ def upgrade() -> None:
     op.add_column('ocrresult', sa.Column('user_id', sa.VARCHAR(length=360), nullable=True))
     # Fill the user_id column with a default value
     op.execute(
-        "UPDATE ocrresult SET user_id = <your_user_id>"  # Replace with actual default user ID
+        "UPDATE ocrresult SET user_id = <default_user_id>"  # Replace with actual default user ID
     )
     # Alter the user_id column to be non-nullable
     op.alter_column('ocrresult', 'user_id', nullable=False)

@@ -55,6 +55,8 @@ async def dashboard(request: Request,
             "carriers_data": carriers["results"],
             "total_pages": carriers["total_pages"],
             "current_page": page,
+            "user_name": request.session['userinfo']['name'],
+            "user_image": request.session['userinfo']['picture']
         })
 
 
