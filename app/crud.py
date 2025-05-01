@@ -126,11 +126,13 @@ def get_ocr_results(db: Session,
     if user_id:
         logger.info(f"🔍 Filtering OCR results by user ID: {user_id}")
         query = query.filter(OCRResult.user_id == user_id)
-    
+
     if valid_dot_only:
         logger.info("🔍 Filtering OCR results with a valid DOT number.")
         query = query.filter(OCRResult.dot_reading != None)
     
+    total_count = query.count()
+
     if do_pagination:
         logger.info(f"🔍 Applying pagination: offset={offset}, limit={page_size}")
         query = query.offset(offset).limit(page_size)
@@ -138,7 +140,6 @@ def get_ocr_results(db: Session,
         logger.info("🔍 Pagination is disabled.")
     
     results = query.all()
-    total_count = query.count()
         
     if results:
         logger.info(f"✅ Found {len(results)} OCR records. Total records: {total_count}.")
@@ -168,11 +169,11 @@ def get_carrier_data(db: Session,
                                            valid_dot_only=True)
         dot_numbers = [result.dot_reading for result in user_ocr_results["results"]]
         carriers = db.query(CarrierData).filter(CarrierData.usdot.in_(dot_numbers))
-        total_count = len(dot_numbers)
+        total_count = carriers.count()
     else:
         logger.info("🔍 Fetching all carrier data without user filtering.")
         carriers = db.query(CarrierData)
-        total_count = db.query(CarrierData).count()
+        total_count = carriers.count()
 
     if do_pagination:
         logger.info(f"🔍 Applying pagination: offset={offset}, limit={page_size}")
