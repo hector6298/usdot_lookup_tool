@@ -15,27 +15,27 @@
         <table class="table table-bordered table-hover">
             <thead class="table-light">
             <tr>
-            <th style="font-size: calc(0.1em + 1.3vw);">DOT Number</th>
-            <th style="font-size: calc(0.1em + 1.3vw);">Legal Name</th>
-            <th style="font-size: calc(0.1em + 1.3vw);">Phone Number</th>
-            <th style="font-size: calc(0.1em + 1.3vw);">Mailing Address</th>
-            <th style="font-size: calc(0.1em + 1.3vw);">Created At</th>
-            <th style="font-size: calc(0.1em + 1.3vw);">Filename</th>
+            <th>DOT Number</th>
+            <th>Legal Name</th>
+            <th>Phone Number</th>
+            <th>Mailing Address</th>
+            <th>Created At</th>
+            <th>Filename</th>
             </tr>
             </thead>
             <tbody>
             {% for ocr_result in results %}
             <tr>
-            <td style="font-size: calc(0.1em + 1.3vw);">
+            <td>
             <a href="{{ url_for('dot_carrier_details', dot_number=ocr_result.dot_reading) }}" class="dot-link">
                 {{ ocr_result.dot_reading }}
             </a>
             </td>
-            <td style="font-size: calc(0.1em + 1.3vw);">{{ ocr_result.carrier_data.legal_name }}</td>
-            <td style="font-size: calc(0.1em + 1.3vw);">{{ ocr_result.carrier_data.phone }}</td>
-            <td style="font-size: calc(0.1em + 1.3vw);">{{ ocr_result.carrier_data.mailing_address }}</td>
-            <td style="font-size: calc(0.1em + 1.3vw);">{{ ocr_result.timestamp }}</td>
-            <td style="font-size: calc(0.1em + 1.3vw);">{{ ocr_result.filename }}</td>
+            <td>{{ ocr_result.carrier_data.legal_name }}</td>
+            <td>{{ ocr_result.carrier_data.phone }}</td>
+            <td>{{ ocr_result.carrier_data.mailing_address }}</td>
+            <td>{{ ocr_result.timestamp }}</td>
+            <td>{{ ocr_result.filename }}</td>
             </tr>
             {% endfor %}
             </tbody>
