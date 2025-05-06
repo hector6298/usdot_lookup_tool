@@ -19,12 +19,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      args:
-        DB_HOST: postgres
-        DB_PORT: 5432
-        DB_NAME: dev_db_doj_ocr_webapp
-        DB_USER: usr_headless
-        DB_PASSWORD: pswd_headless
+    env_file:
+      - app/config.env
     container_name: ocr_backend
     restart: always
     depends_on:

@@ -8,7 +8,6 @@ from app.database import get_db
 from app.models import OCRResultCreate, CarrierData
 from app.crud import save_ocr_results_bulk, save_carrier_data_bulk
 from app.info_extraction import cloud_ocr_from_image_file, safer_web_lookup_from_dot
-from app.config import config
 from app.routes.verify_login import verify_login
 from google.cloud import vision
 from safer import CompanySnapshot
@@ -18,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 # Initialize Google Cloud Vision client
 vision_client = vision.ImageAnnotatorClient(
-    client_options={"api_key": config["GCP"]["OCR_API_KEY"]}
+    client_options={"api_key": os.environ.get("GCP_OCR_API_KEY")}
 )
 
 # Initialize SAFER web crawler

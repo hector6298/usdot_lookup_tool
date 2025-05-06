@@ -1,11 +1,11 @@
 import logging
+import os
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 from app.database import init_db
-from app.config import config
 from app.routes import dashboard, upload, dot_carrier_details, auth, home, lookup_history
 
 # Configure Logging to Console
@@ -31,7 +31,7 @@ app = FastAPI(title="DOJ OCR Truck Recognition",
 # Middleware to be able to access session data
 app.add_middleware(
     SessionMiddleware,
-    secret_key=config['WEBAPP']['SESSION_SECRET']
+    secret_key=os.environ.get('WEBAPP_SESSION_SECRET')
 )
 
 # Include routers

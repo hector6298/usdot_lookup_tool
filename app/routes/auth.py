@@ -1,8 +1,8 @@
+import os
 from urllib.parse import quote_plus, urlencode
-
 from fastapi import APIRouter, Request
 from fastapi.responses import RedirectResponse
-from app.auth_setup import auth0_config, oauth
+from app.auth_setup import oauth
 
 
 router = APIRouter()
@@ -41,12 +41,12 @@ def logout(request: Request):
     Redirects the user to the Auth0 Universal Login (https://auth0.com/docs/authenticate/login/auth0-universal-login)
     """
     response = RedirectResponse(
-        url="https://" + auth0_config['DOMAIN']
+        url="https://" + os.environ.get('AUTH0_DOMAIN')
             + "/v2/logout?"
             + urlencode(
                 {
                     "returnTo": request.url_for("home"),
-                    "client_id": auth0_config['CLIENT_ID'],
+                    "client_id": os.environ.get('AUTH0_CLIENT_ID'),
                 },
                 quote_via=quote_plus,
             )
