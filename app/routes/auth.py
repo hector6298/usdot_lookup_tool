@@ -18,7 +18,7 @@ async def login(request: Request):
             request,
             redirect_uri=request.url_for("callback")
         )
-    return RedirectResponse(url=request.url_for("dashboard"))
+    return RedirectResponse(url=request.url_for("dashboard", dashboard_type="carriers"))
 
 
 @router.get("/signup")
@@ -32,7 +32,7 @@ async def signup(request: Request):
             redirect_uri=request.url_for("callback"),
             screen_hint="signup"
         )
-    return RedirectResponse(url=request.url_for("dashboard"))
+    return RedirectResponse(url=request.url_for("dashboard", dashboard_type="carriers"))
 
 
 @router.get("/logout")
@@ -64,4 +64,4 @@ async def callback(request: Request):
     # Store `id_token`, and `userinfo` in session
     request.session['id_token'] = token['id_token']
     request.session['userinfo'] = token['userinfo']
-    return RedirectResponse(url=request.url_for("dashboard"))
+    return RedirectResponse(url=request.url_for("dashboard", dashboard_type="carriers"))

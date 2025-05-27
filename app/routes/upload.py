@@ -1,16 +1,15 @@
 import os
 import logging
 from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, Request
-from fastapi.responses import RedirectResponse
 from sqlmodel import Session
-from PIL import Image
 from app.database import get_db
-from app.models import OCRResultCreate, CarrierData
+from app.models import OCRResultCreate
 from app.crud import save_ocr_results_bulk, save_carrier_data_bulk
 from app.info_extraction import cloud_ocr_from_image_file, safer_web_lookup_from_dot
 from app.routes.verify_login import verify_login
 from google.cloud import vision
 from safer import CompanySnapshot
+from fastapi.responses import JSONResponse
 
 # Set up a module-level logger
 logger = logging.getLogger(__name__)
@@ -35,25 +34,29 @@ async def upload_file(files: list[UploadFile] = File(...),
     ocr_records = []  # Store OCR results before batch insert
     valid_files = []
     invalid_files = []
-
+    user_id = request.session['userinfo']['sub']
+    org_id = (request.session['userinfo']['org_id'] 
+                if 'org_id' in request.session['userinfo'] else user_id)
+    
     for file in files:
         try:
             # Validate file type
             if not file.filename.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp')):
                 logger.error("❌ Invalid file type. Only image files ('.png', '.jpg', '.jpeg', '.bmp') are allowed.")
                 invalid_files.append(file.filename)
-                continue            
+                continue         
+               
             # perform OCR on image
-            
             ocr_text = await cloud_ocr_from_image_file(vision_client, file)
             ocr_record = OCRResultCreate(extracted_text=ocr_text, 
                                          filename=file.filename,
-                                         user_id=request.session['userinfo']['sub'])
+                                         user_id=user_id,
+                                         org_id=org_id)
             ocr_records.append(ocr_record)
             valid_files.append(file.filename)
         except Exception as e:
             logger.exception(f"❌ Error processing file: {e}")
-
+    
     if not ocr_records:
         raise HTTPException(status_code=400, detail="No valid files were processed.")
     
@@ -72,11 +75,23 @@ async def upload_file(files: list[UploadFile] = File(...),
            
         # Save carrier data to database
         if safer_lookups:
-            _ = save_carrier_data_bulk(db, safer_lookups)
+            _ = save_carrier_data_bulk(db, safer_lookups, 
+                                       org_id=org_id)
             logger.info(f"✅ Processed {len(ocr_results)} OCR results, {safer_lookups} carrier records saved.")
 
     # Collect all OCR result IDs
-    ocr_result_ids = [result.id for result in ocr_results]
-
+    ocr_result_ids = [
+        {"id": result.id, "dot_reading": result.dot_reading}
+        for result in ocr_results
+    ]
+    
     # Redirect to home with all OCR result IDs
-    return RedirectResponse(url=f"dashboard/?result_ids={','.join(map(str, ocr_result_ids))}", status_code=303)
+    return JSONResponse(
+        content={
+            "message": "Processing complete",
+            "result_ids": ocr_result_ids,
+            "valid_files": valid_files,
+            "invalid_files": invalid_files
+        },
+        status_code=200
+    )

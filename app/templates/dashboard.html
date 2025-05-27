@@ -5,7 +5,7 @@
 {% block content %}
 <!-- Main Content -->
 <div class="container" style="padding-top: 60px;">
-    <h1 class="text-center text-white mb-4">AI USDOT Lookup Tool From Images!</h1>ah
+    <h1 class="text-center text-white mb-4">AI USDOT Lookup Tool From Images!</h1>
         <div class="card p-4 shadow-sm">
             <h4>Upload to scan your truck images</h4>
             <form id="upload-form" enctype="multipart/form-data">
@@ -37,53 +37,60 @@
     {% endif %}
 
     <!-- Table Results section -->
-    {% if carriers_data %}
     <div class="card mt-4 p-4 shadow-sm">
 
         <h4>USDOT Number Records</h4>
 
-        <table class="table table-bordered table-hover">
-            <thead class="table-light">
-            <tr>
-            <th>DOT Number</th>
-            <th>Legal Name</th>
-            <th>Phone Number</th>
-            <th>Mailing Address</th>
-            <th>Created At</th>
-            <th>Carrier Interested</th>
-            <th>Client Contacted</th>
-            </tr>
-            </thead>
-            <tbody>
-            {% for carrier in carriers_data %}
-            <tr>
-            <td>
-            <a href="{{ url_for('dot_carrier_details', dot_number=carrier.usdot) }}" class="dot-link">
-            {{ carrier.usdot }}
-            </a>
-            </td>
-            <td>{{ carrier.legal_name }}</td>
-            <td>{{ carrier.phone }}</td>
-            <td>{{ carrier.mailing_address }}</td>
-            <td>{{ carrier.max_ocr_timestamp }}</td>
-            <td>
-            <input type="checkbox" class="form-check-input checkbox-track" 
-               data-usdot="{{ carrier.usdot }}" 
-               data-field="carrier_interested" 
-               {% if carrier.carrier_interested %}checked{% endif %}>
-            </td>
-            <td>
-            <input type="checkbox" class="form-check-input checkbox-track" 
-               data-usdot="{{ carrier.usdot }}" 
-               data-field="carrier_contacted" 
-               {% if carrier.carrier_contacted %}checked{% endif %}>
-            </td>
-            </tr>
-            {% endfor %}
-            </tbody>
-        </table>
+        <!-- Table filters -->
+        <form id="filter-form" class="mb-4" data-dashboard-type="{{ dashboard_type }}">
+            <div class="row">
+                <div class="col-md-4">
+                    <label for="legal_name" class="form-label">Legal Name</label>
+                    <input type="text" id="legal_name" name="legal_name" class="form-control" placeholder="Enter legal name">
+                </div>
+                <div class="col-md-4">
+                    <label for="carrier_interested" class="form-label">Carrier Interested</label>
+                    <select id="carrier_interested" name="carrier_interested" class="form-select">
+                        <option value="">All</option>
+                        <option value="true">Yes</option>
+                        <option value="false">No</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label for="client_contacted" class="form-label">Client Contacted</label>
+                    <select id="client_contacted" name="client_contacted" class="form-select">
+                        <option value="">All</option>
+                        <option value="true">Yes</option>
+                        <option value="false">No</option>
+                    </select>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary mt-3">Apply Filters</button>
+        </form>
+
+        <!-- Table Results dynamically loaded using js -->
+        <div id="scrollable-container" style="height: 500px; overflow-y: auto;">
+            <table class="table table-bordered table-hover">
+                <thead>
+                    <tr>
+                        <th>DOT Number</th>
+                        <th>Legal Name</th>
+                        <th>Phone Number</th>
+                        <th>Mailing Address</th>
+                        <th>Created At</th>
+                        <th>Client Contacted</th>
+                        <th>Client Followed Up</th>
+                        <th>Follow Up By Date</th>
+                        <th>Carrier Interested</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Rows will be dynamically loaded here -->
+                </tbody>
+            </table>
+        </div>
         <div class="d-flex justify-content-end mt-3">
-            <a href="/export_carrier_data" class="btn btn-outline-success me-2">
+            <a href="/data/export/carriers" class="btn btn-outline-success me-2">
                 <i class="bi bi-download"></i>
             </a>
             <button id="revert-button" class="btn btn-secondary me-2" disabled>Revert</button>
@@ -91,42 +98,13 @@
         </div>
     </div>
 
-    {% else %}
-    <div class="alert alert-warning mt-4">
-        <p>No OCR results yet! Upload an image to start showing some results.</p>
-    </div>
-    {% endif %}
 
-    <!-- Navigation controls for the table -->
-    <nav aria-label="Page navigation" class="mt-4">
-        <ul class="pagination justify-content-center">
-            {% if current_page > 1 %}
-            <li class="page-item">
-                <a class="page-link" href="/dashboard?page={{ current_page - 1 }}">Previous</a>
-            </li>
-            {% else %}
-            <li class="page-item disabled">
-                <span class="page-link">Previous</span>
-            </li>
-            {% endif %}
-    
-            {% for page_num in range(1, total_pages + 1) %}
-            <li class="page-item {% if page_num == current_page %}active{% endif %}">
-                <a class="page-link" href="/dashboard?page={{ page_num }}">{{ page_num }}</a>
-            </li>
-            {% endfor %}
-    
-            {% if current_page < total_pages %}
-            <li class="page-item">
-                <a class="page-link" href="/dashboard?page={{ current_page + 1 }}">Next</a>
-            </li>
-            {% else %}
-            <li class="page-item disabled">
-                <span class="page-link">Next</span>
-            </li>
-            {% endif %}
-        </ul>
-    </nav>
+
 </div>
 
+{% endblock %}
+
+{% block js_scripts %}
+<script type="module" src="/static/update_carrier_engagement.js"></script>
+<script type="module" src="/static/upload.js"></script>
 {% endblock %}

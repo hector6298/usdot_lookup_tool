@@ -6,7 +6,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 from app.database import init_db
-from app.routes import dashboard, upload, dot_carrier_details, auth, home, lookup_history
+from app.routes import dashboard, upload, auth, home, data
 
 # Configure Logging to Console
 logger = logging.getLogger(__name__)
@@ -38,9 +38,8 @@ app.add_middleware(
 app.include_router(auth.router)
 app.include_router(home.router)
 app.include_router(dashboard.router)
-app.include_router(dot_carrier_details.router)
 app.include_router(upload.router)
-app.include_router(lookup_history.router)
+app.include_router(data.router)
 
 # Serve static files
 app.mount("/static", StaticFiles(directory="app/static"), name="static")

@@ -21,9 +21,9 @@ depends_on: Union[str, Sequence[str], None] = None
 def upgrade() -> None:
     """Upgrade schema."""
     # Add engagement columns to carrierdata
-    op.add_column('carrierdata', sa.Column('carrier_interested', sa.BOOLEAN(), nullable=True))
-    op.add_column('carrierdata', sa.Column('carrier_contacted', sa.BOOLEAN(), nullable=True))
-    op.add_column('carrierdata', sa.Column('carrier_emailed', sa.BOOLEAN(), nullable=True))
+    op.add_column('carrierdata', sa.Column('carrier_interested', sa.BOOLEAN(), nullable=False, server_default=sa.text('false')))
+    op.add_column('carrierdata', sa.Column('carrier_contacted', sa.BOOLEAN(), nullable=False, server_default=sa.text('false')))
+    op.add_column('carrierdata', sa.Column('carrier_emailed', sa.BOOLEAN(), nullable=False, server_default=sa.text('false')))
     op.add_column('carrierdata', sa.Column('rental_notes', sa.VARCHAR(length=360), nullable=True))
     op.add_column('carrierdata', sa.Column('carrier_interested_timestamp', postgresql.TIMESTAMP(), nullable=True))
     op.add_column('carrierdata', sa.Column('carrier_contacted_timestamp', postgresql.TIMESTAMP(), nullable=True))

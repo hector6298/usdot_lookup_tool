@@ -1,74 +1,115 @@
-const checkboxes = document.querySelectorAll('.checkbox-track');
-const submitButton = document.getElementById('submit-button');
-const revertButton = document.getElementById('revert-button');
-let initialStates = {};
+export const Engagement = {
+    initialStates: {},
 
-document.addEventListener("DOMContentLoaded", () => {
-    // Save initial states of checkboxes
-    checkboxes.forEach(checkbox => {
-        initialStates[checkbox.dataset.usdot + '-' + checkbox.dataset.field] = checkbox.checked;
-    });
+    trackChanges: function () {
+        const inputs = document.querySelectorAll(".checkbox-track, .form-control[data-field='carrier_follow_up_by_date']");
+        const submitButton = document.getElementById("submit-button");
+        const revertButton = document.getElementById("revert-button");
 
-    // Track changes and enable/disable buttons
-    checkboxes.forEach(checkbox => {
-        checkbox.addEventListener('change', () => {
-            const hasChanges = Array.from(checkboxes).some(cb => 
-                cb.checked !== initialStates[cb.dataset.usdot + '-' + cb.dataset.field]
-            );
-            submitButton.disabled = !hasChanges;
-            revertButton.disabled = !hasChanges;
+        inputs.forEach((input) => {
+            input.addEventListener("change", () => {
+                const hasChanges = Array.from(inputs).some((input) => {
+                    const key = input.dataset.usdot + "-" + input.dataset.field;
+                    return input.type === "checkbox"
+                        ? input.checked !== Engagement.initialStates[key]
+                        : input.value !== Engagement.initialStates[key];
+                });
+                submitButton.disabled = !hasChanges;
+                revertButton.disabled = !hasChanges;
+            });
         });
-    });
+    },
 
-    // Revert button functionality
-    revertButton.addEventListener('click', () => {
-        checkboxes.forEach(checkbox => {
-            checkbox.checked = initialStates[checkbox.dataset.usdot + '-' + checkbox.dataset.field];
+    revertChanges: function () {
+        const inputs = document.querySelectorAll(".checkbox-track, .form-control[data-field='carrier_follow_up_by_date']");
+        inputs.forEach((input) => {
+            const key = input.dataset.usdot + "-" + input.dataset.field;
+            if (input.type === "checkbox") {
+                input.checked = Engagement.initialStates[key];
+            } else {
+                input.value = Engagement.initialStates[key];
+            }
         });
-        submitButton.disabled = true;
-        revertButton.disabled = true;
-    });
+        document.getElementById("submit-button").disabled = true;
+        document.getElementById("revert-button").disabled = true;
+    },
 
-    // Submit button functionality
-    submitButton.addEventListener('click', () => {
-        const changes = Array.from(checkboxes)
-            .filter(cb => cb.checked !== initialStates[cb.dataset.usdot + '-' + cb.dataset.field])
-            .map(cb => ({
-                usdot: cb.dataset.usdot,
-                field: cb.dataset.field,
-                value: cb.checked
+    submitChanges: function () {
+        const inputs = document.querySelectorAll(".checkbox-track, .form-control[data-field='carrier_follow_up_by_date']");
+        const changes = Array.from(inputs)
+            .filter((input) => {
+                const key = input.dataset.usdot + "-" + input.dataset.field;
+                return input.type === "checkbox"
+                    ? input.checked !== Engagement.initialStates[key]
+                    : input.value !== Engagement.initialStates[key];
+            })
+            .map((input) => ({
+                usdot: input.dataset.usdot,
+                field: input.dataset.field,
+                value: input.type === "checkbox" ? input.checked : input.value,
             }));
-        
+
         if (changes.length === 0) {
-            alert('No changes to submit.');
+            alert("No changes to submit.");
             return;
         }
 
-        console.log(JSON.stringify({changes}));
-        // Send changes to the server (example using fetch)
-        fetch('/update_carrier_interests', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({changes})
-        }).then(response => {
-            if (response.ok) {
-                // Update initial states after successful submission
-                checkboxes.forEach(checkbox => {
-                    initialStates[checkbox.dataset.usdot + '-' + checkbox.dataset.field] = checkbox.checked;
-                });
-                submitButton.disabled = true;
-                revertButton.disabled = true;
-            } else {
-                console.log('Failed to submit changes:', response);
-                response.json().then(errorData => {
-                    alert(`Failed to submit changes: ${errorData.message || 'Unknown error'}`);
-                }).catch(() => {
-                    alert('Failed to submit changes and could not parse error response.');
+        fetch("/data/update/carrier_interests", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ changes }),
+        })
+            .then((response) => {
+                if (response.ok) {
+                    inputs.forEach((input) => {
+                        const key = input.dataset.usdot + "-" + input.dataset.field;
+                        if (input.type === "checkbox") {
+                            Engagement.initialStates[key] = input.checked;
+                        } else {
+                            Engagement.initialStates[key] = input.value;
+                        }
+                    });
+                    document.getElementById("submit-button").disabled = true;
+                    document.getElementById("revert-button").disabled = true;
+                } else {
+                    alert("Failed to submit changes.");
+                }
+            })
+            .catch((error) => console.error("Error submitting changes:", error));
+    },
+
+    reinitializeInputs: function () {
+        const inputs = document.querySelectorAll(".checkbox-track, .form-control[data-field='carrier_follow_up_by_date']");
+        inputs.forEach((input) => {
+            const key = input.dataset.usdot + "-" + input.dataset.field;
+            if (!(key in Engagement.initialStates)) {
+                Engagement.initialStates[key] = input.type === "checkbox" ? input.checked : input.value;
+                input.addEventListener("change", () => {
+                    const hasChanges = Array.from(inputs).some((input) => {
+                        const key = input.dataset.usdot + "-" + input.dataset.field;
+                        return input.type === "checkbox"
+                            ? input.checked !== Engagement.initialStates[key]
+                            : input.value !== Engagement.initialStates[key];
+                    });
+                    document.getElementById("submit-button").disabled = !hasChanges;
+                    document.getElementById("revert-button").disabled = !hasChanges;
                 });
             }
         });
-    });
+    },
 
-});
+    init: function () {
+        const inputs = document.querySelectorAll(".checkbox-track, .form-control[data-field='carrier_follow_up_by_date']");
+        inputs.forEach((input) => {
+            const key = input.dataset.usdot + "-" + input.dataset.field;
+            Engagement.initialStates[key] = input.type === "checkbox" ? input.checked : input.value;
+        });
+
+        document.getElementById("revert-button").addEventListener("click", Engagement.revertChanges);
+        document.getElementById("submit-button").addEventListener("click", Engagement.submitChanges);
+
+        Engagement.trackChanges();
+    },
+};
+
+document.addEventListener("DOMContentLoaded", Engagement.init);

@@ -3,86 +3,60 @@
 {% block title %}Lookup History{% endblock %}
 
 {% block content %}
-
+<!-- Main Content -->
 <div class="container" style="padding-top: 60px;">
-    <h1 class="text-center text-white mb-4">USDOT Upload and Lookup History</h1>
-    
-
+    <h1 class="text-center text-white mb-4">Lookup History</h1>
     <!-- Table Results section -->
-    {% if results %}
     <div class="card mt-4 p-4 shadow-sm">
-        <h4>DOT Number Records</h4>
-        <table class="table table-bordered table-hover">
-            <thead class="table-light">
-            <tr>
-            <th>DOT Number</th>
-            <th>Legal Name</th>
-            <th>Phone Number</th>
-            <th>Mailing Address</th>
-            <th>Created At</th>
-            <th>Filename</th>
-            </tr>
-            </thead>
-            <tbody>
-            {% for ocr_result in results %}
-            <tr>
-            <td>
-            <a href="{{ url_for('dot_carrier_details', dot_number=ocr_result.dot_reading) }}" class="dot-link">
-                {{ ocr_result.dot_reading }}
-            </a>
-            </td>
-            <td>{{ ocr_result.carrier_data.legal_name }}</td>
-            <td>{{ ocr_result.carrier_data.phone }}</td>
-            <td>{{ ocr_result.carrier_data.mailing_address }}</td>
-            <td>{{ ocr_result.timestamp }}</td>
-            <td>{{ ocr_result.filename }}</td>
-            </tr>
-            {% endfor %}
-            </tbody>
-        </table>
+
+        <h4>USDOT Number Records</h4>
+
+        <!-- Table filters -->
+        <form id="filter-form" class="mb-4" data-dashboard-type="{{ dashboard_type }}">
+            <div class="row">
+                <div class="col-md-4">
+                    <label for="legal_name" class="form-label">Legal Name</label>
+                    <input type="text" id="legal_name" name="legal_name" class="form-control" placeholder="Enter legal name">
+                </div>
+                <div class="col-md-4">
+                    <label for="valid_dot_only" class="form-label">Valid DOT Only</label>
+                    <select id="valid_dot_only" name="valid_dot_only" class="form-select">
+                        <option value="">All</option>
+                        <option value="true">Yes</option>
+                        <option value="false">No</option>
+                    </select>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary mt-3">Apply Filters</button>
+        </form>
+
+        <!-- Table Results dynamically loaded using js -->
+        <div id="scrollable-container" style="height: 500px; overflow-y: auto;">
+            <table class="table table-bordered table-hover">
+                <thead style="position: sticky; top: 0; background-color: white; z-index: 1;"></thead>
+                    <tr>
+                        <th>DOT Number</th>
+                        <th>Legal Name</th>
+                        <th>Phone Number</th>
+                        <th>Mailing Address</th>
+                        <th>Created At</th>
+                        <th>Filename</th>
+                        <th>User ID</th>
+                        <th>Org ID</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Rows will be dynamically loaded here -->
+                </tbody>
+            </table>
+        </div>
         <div class="d-flex justify-content-end mt-3">
-            <a href="/export_lookup_history" class="btn btn-outline-success me-2">
+            <a href="/data/export/lookup_history" class="btn btn-outline-success me-2">
                 <i class="bi bi-download"></i>
             </a>
         </div>
     </div>
 
-    {% else %}
-    <div class="alert alert-warning mt-4">
-        <p>No OCR results yet! Upload an image to start showing some results.</p>
-    </div>
-    {% endif %}
-
-    <!-- Navigation controls for the table -->
-    <nav aria-label="Page navigation" class="mt-4">
-        <ul class="pagination justify-content-center">
-            {% if current_page > 1 %}
-            <li class="page-item">
-                <a class="page-link" href="/lookup_history?page={{ current_page - 1 }}">Previous</a>
-            </li>
-            {% else %}
-            <li class="page-item disabled">
-                <span class="page-link">Previous</span>
-            </li>
-            {% endif %}
-    
-            {% for page_num in range(1, total_pages + 1) %}
-            <li class="page-item {% if page_num == current_page %}active{% endif %}">
-                <a class="page-link" href="/lookup_history?page={{ page_num }}">{{ page_num }}</a>
-            </li>
-            {% endfor %}
-    
-            {% if current_page < total_pages %}
-            <li class="page-item">
-                <a class="page-link" href="/lookup_history?page={{ current_page + 1 }}">Next</a>
-            </li>
-            {% else %}
-            <li class="page-item disabled">
-                <span class="page-link">Next</span>
-            </li>
-            {% endif %}
-        </ul>
-    </nav>
 </div>
 
 {% endblock %}

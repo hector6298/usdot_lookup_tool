@@ -1,10 +1,11 @@
 import re
 import logging
 from sqlmodel import Session
-from app.models import OCRResult, OCRResultCreate, CarrierData, CarrierChangeItem
+from app.models import OCRResult, OCRResultCreate, CarrierData, CarrierChangeItem, CarrierEngagementStatus
 from datetime import datetime
 from flatten_dict import flatten
 from fastapi import HTTPException
+from sqlalchemy.orm import joinedload
 
 # Set up a module-level logger
 logger = logging.getLogger(__name__)
@@ -111,88 +112,100 @@ def get_ocr_result_by_id(db: Session, result_id: int) -> OCRResult:
     return result
 
 def get_ocr_results(db: Session, 
-                    user_id: str = None, 
-                    page: int = 1, 
-                    page_size: int = 10, 
-                    do_pagination: bool = True,
-                    valid_dot_only: bool = True) -> dict:
-    """Retrieves paginated OCR results with a valid DOT number."""
-
-    logger.info(f"🔍 Fetching paginated OCR results (Page: {page}, Page Size: {page_size}).")
-    offset = (page - 1) * page_size
+                    org_id: str = None,
+                    offset: int = None, 
+                    limit: int = None, 
+                    valid_dot_only: bool = True,
+                    eager_relations:bool = False) -> dict:
+    """Retrieves OCR results with a valid DOT number."""
 
     query = db.query(OCRResult)
-    
-    if user_id:
-        logger.info(f"🔍 Filtering OCR results by user ID: {user_id}")
-        query = query.filter(OCRResult.user_id == user_id)
+    if eager_relations:
+        logger.info("🔍 Eager loading carrier data for OCR results.")
+        query = query.options(joinedload(OCRResult.carrier_data))
+        
+    if org_id:
+        logger.info(f"🔍 Filtering OCR results by org ID: {org_id}")
+        query = query.filter(OCRResult.org_id == org_id)
 
     if valid_dot_only:
         logger.info("🔍 Filtering OCR results with a valid DOT number.")
         query = query.filter(OCRResult.dot_reading != None)
     
-    total_count = query.count()
-
-    if do_pagination:
-        logger.info(f"🔍 Applying pagination: offset={offset}, limit={page_size}")
-        query = query.offset(offset).limit(page_size)
+    if offset is not None and limit is not None:
+        logger.info(f"🔍 Applying range to OCR results: offset={offset}, limit={limit}")
+        query = query.offset(offset).limit(limit)
     else:
-        logger.info("🔍 Pagination is disabled.")
+        logger.info("🔍 Returning all OCR results")
     
     results = query.all()
         
-    if results:
-        logger.info(f"✅ Found {len(results)} OCR records. Total records: {total_count}.")
-    else:
-        logger.warning("⚠ No OCR results found with a valid DOT number on this page.")
-
-    return {
-        "results": results,
-        "total_count": total_count,
-        "total_pages": ((total_count + page_size - 1) // page_size) if do_pagination else 1
-    }
+    logger.info(f"✅ Found {len(results)} OCR results.")
+    return results
 
 def get_carrier_data(db: Session, 
-                     user_id: str = None, 
-                     page: int = 1, 
-                     page_size: int = 10,
-                     do_pagination: bool = True) -> dict:
-    """Retrieves paginated carrier data from the database."""
-    logger.info(f"🔍 Fetching paginated carrier data (Page: {page}, Page Size: {page_size}).")
-    offset = (page - 1) * page_size
+                     org_id: str = None,
+                     offset: int = None, 
+                     limit: int = None
+                     ) -> dict:
+    """Retrieves carrier data from the database."""
 
-    if user_id:
-        logger.info(f"🔍 Filtering carrier data by user ID: {user_id}")
+    if org_id:
+        logger.info(f"🔍 Filtering carrier data by org ID: {org_id}")
         user_ocr_results = get_ocr_results(db, 
-                                           user_id=user_id, 
-                                           do_pagination=False, 
+                                           org_id=org_id,
                                            valid_dot_only=True)
-        dot_numbers = [result.dot_reading for result in user_ocr_results["results"]]
+        dot_numbers = [result.dot_reading for result in user_ocr_results]
         carriers = db.query(CarrierData).filter(CarrierData.usdot.in_(dot_numbers))
-        total_count = carriers.count()
     else:
         logger.info("🔍 Fetching all carrier data without user filtering.")
         carriers = db.query(CarrierData)
-        total_count = carriers.count()
 
-    if do_pagination:
-        logger.info(f"🔍 Applying pagination: offset={offset}, limit={page_size}")
-        carriers = carriers.offset(offset).limit(page_size)
+    if offset is not None and limit is not None:
+        logger.info(f"🔍 Applying offset: offset={offset}, limit={limit}")
+        carriers = carriers.offset(offset).limit(limit)
     else:
-        logger.info("🔍 Pagination is disabled.")
+        logger.info("🔍 Offset is disabled.")
+
+    carriers = carriers.all()
+    logger.info(f"✅ Found {len(carriers)} carrier records.")
+
+    return carriers
+
+
+def get_engagement_data(db: Session, 
+                        org_id: str = None,
+                        offset: int = None, 
+                        limit: int = None,
+                        carrier_interested: bool = None,
+                        carrier_contacted: bool = None) -> list[CarrierEngagementStatus]:
+    """Retrieves carrier engagement statuses from the database."""
+
+    if org_id:
+        carriers = db.query(CarrierEngagementStatus).filter(CarrierEngagementStatus.org_id == org_id)
+    else:
+        logger.info("🔍 Fetching all carrier engagement status without group filtering.")
+        carriers = db.query(CarrierEngagementStatus)
+
+    if carrier_interested is not None:
+        logger.info("🔍 Filtering carrier data for interested carriers.")
+        carriers = carriers.filter(CarrierEngagementStatus.carrier_interested == carrier_interested)
+
+    if carrier_contacted is not None:
+        logger.info("🔍 Filtering carrier data for contacted carriers.")
+        carriers = carriers.filter(CarrierEngagementStatus.carrier_contacted == carrier_contacted)
+
+    if offset is not None and limit is not None:
+        logger.info(f"🔍 Applying offset: offset={offset}, limit={limit}")
+        carriers = carriers.offset(offset).limit(limit)
+    else:
+        logger.info("🔍 Offset is disabled.")
 
     carriers = carriers.all()
 
-    if carriers:
-        logger.info(f"✅ Found {len(carriers)} carrier records on page {page}. Total records: {total_count}.")
-    else:
-        logger.warning("⚠ No carrier data found on this page.")
+    logger.info(f"✅ Found {len(carriers)} carrier engagement records.")
 
-    return {
-        "results": carriers,
-        "total_count": total_count,
-        "total_pages": (total_count + page_size - 1) // page_size
-    }
+    return carriers
 
 # Carrier CRUD operations
 def get_carrier_data_by_dot(db: Session, dot_number: str) -> CarrierData:
@@ -249,11 +262,68 @@ def save_carrier_data(db: Session, carrier_data: dict) -> CarrierData:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
-def save_carrier_data_bulk(db: Session, carrier_data: list[dict]) -> list[CarrierData]:
+def generate_engagement_records(db: Session, 
+                                usdot_numbers: list[int], 
+                                user_id: str, 
+                                org_id:str) -> list[CarrierData]:
+    """Generates engagement records for the given USDOT numbers."""
+    logger.info("🔍 Generating engagement records for carriers."
+                f"USDOT numbers: {usdot_numbers}, User ID: {user_id}, Org ID: {org_id}")
+    engagement_records = []
+    for usdot in usdot_numbers:
+        try:
+
+            # Check if the engagement record already exists
+            existing_engagement = db.query(CarrierEngagementStatus)\
+                                     .filter(CarrierEngagementStatus.usdot == usdot,
+                                             CarrierEngagementStatus.org_id == org_id)\
+                                     .first()
+            if existing_engagement:
+                logger.info(f"🔍 Engagement record already exists for USDOT: {usdot} and ORG {org_id}. Skipping.")
+                continue
+
+            # Create a new engagement record
+            engagement_record = CarrierEngagementStatus(
+                usdot=usdot,
+                org_id=org_id
+            )
+            engagement_records.append(engagement_record)
+
+        except Exception as e:
+            logger.error(f"❌ Error generating engagement record for USDOT {usdot}: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+        
+    return engagement_records
+    
+def save_engagement_records_bulk(db: Session,
+                                 usdot_numbers: list[int], 
+                                 user_id: str, 
+                                 org_id:str) -> None:
+    """Saves multiple engagement records to the database."""
+    engagement_records = generate_engagement_records(db, usdot_numbers, user_id, org_id)
+    try:
+        logger.info(f"🔍 Saving {len(engagement_records)} engagement records to the database.")
+        db.add_all(engagement_records)
+        db.commit()
+
+        # Refresh all records to get the latest state
+        for record in engagement_records:
+            db.refresh(record)
+
+        logger.info("✅ All engagement records saved successfully.")
+        return engagement_records
+    except Exception as e:
+        logger.error(f"❌ Error saving engagement records: {e}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+def generate_carrier_records(db: Session, 
+                             carrier_data: list[dict]) -> list[CarrierData]:
     """Saves multiple carrier data records to the database, performing upserts."""
     logger.info("🔍 Saving multiple carrier data records to the database.")
     carrier_records = []
-
+    
     for data in carrier_data:
         try:
             # remove us_inspections key from carrier_data
@@ -283,17 +353,31 @@ def save_carrier_data_bulk(db: Session, carrier_data: list[dict]) -> list[Carrie
 
         except Exception as e:
             logger.error(f"❌ Error processing carrier data: {e}")
-            continue
+            raise HTTPException(status_code=500, detail=str(e))
+    return carrier_records
 
-    if carrier_records:
+
+def save_carrier_data_bulk(db: Session, 
+                           carrier_data: list[dict],
+                           org_id: str) -> list[CarrierData]:
+    """Saves multiple carrier data records to the database, performing upserts."""
+    usdot_numbers = [data["usdot"] for data in carrier_data]
+    carrier_records = generate_carrier_records(db, carrier_data)
+    engagement_records = generate_engagement_records(db,
+                                                    usdot_numbers,
+                                                    user_id=org_id,
+                                                    org_id=org_id)
+    if carrier_records and engagement_records and len(carrier_records) == len(engagement_records):
         try:
             logger.info(f"🔍 Saving {len(carrier_records)} carrier records to the database in bulk.")
             db.add_all(carrier_records)
+            db.add_all(engagement_records)
             db.commit()
 
             # Refresh all records to get the latest state
-            for record in carrier_records:
-                db.refresh(record)
+            for carrier_record, engagement_record in zip(carrier_records, engagement_records):
+                db.refresh(carrier_record)
+                db.refresh(engagement_record)
 
             logger.info("✅ All carrier records saved successfully.")
             return carrier_records
@@ -305,7 +389,8 @@ def save_carrier_data_bulk(db: Session, carrier_data: list[dict]) -> list[Carrie
         logger.warning("⚠ No valid carrier records to save.")
     return []
 
-def update_carrier_engagement(db: Session, carrier_change_item: dict) -> CarrierData:
+
+def update_carrier_engagement(db: Session, carrier_change_item: dict) -> CarrierEngagementStatus:
     """Updates carrier interests based on user input."""
 
     carrier_change_item = CarrierChangeItem.model_validate(carrier_change_item)
@@ -314,19 +399,27 @@ def update_carrier_engagement(db: Session, carrier_change_item: dict) -> Carrier
     value = carrier_change_item.value
 
     try:
-        logger.info(f"Updating carrier interest for DOT number: {dot_number}, field: {field}, value: {value}")
+        logger.info(f"Updating carrier interest for DOT number: {dot_number}, field: {field}, value: {value}, type: {type(value)}")
 
         # Check if the carrier exists
-        carrier = db.query(CarrierData)\
-                    .filter(CarrierData.usdot == dot_number)\
+        carrier = db.query(CarrierEngagementStatus)\
+                    .filter(CarrierEngagementStatus.usdot == dot_number)\
                     .first()
         if not carrier:
             logger.warning(f"⚠ No carrier found for DOT number: {dot_number}")
             return None
 
         # Update the specified fields
-        setattr(carrier, field, value)
-        setattr(carrier, field + "_timestamp", datetime.now())
+        if field in ["carrier_interested", "carrier_contacted", "carrier_followed_up", "carrier_emailed"]:
+
+            setattr(carrier, field, value)
+            setattr(carrier, field + "_timestamp", datetime.now())
+            setattr(carrier, field + "_by_user_id", carrier_change_item.user_id)
+        elif field in CarrierEngagementStatus.__table__.columns and type(value) == str:
+            setattr(carrier, field, value)
+        else:
+            logger.error(f"❌ Invalid field or value type for field: {field}, value: {value}")
+            raise HTTPException(status_code=400, detail="Invalid field or value type")
         
         db.commit()
         db.refresh(carrier)
