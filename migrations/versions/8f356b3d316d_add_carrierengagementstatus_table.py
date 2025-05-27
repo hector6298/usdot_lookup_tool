@@ -57,7 +57,7 @@ def upgrade() -> None:
         )
         SELECT 
             usdot, 
-            'org_MeXxTWYD3BvxXZ7L',
+            '<org_id>',  -- Replace with actual org_id
             now(),
             false,
             false,
