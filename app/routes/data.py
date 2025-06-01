@@ -14,6 +14,7 @@ from app.models import OCRResultResponse, CarrierData, CarrierWithEngagementResp
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
 
+
 # Set up a module-level logger
 logger = logging.getLogger(__name__)
 
