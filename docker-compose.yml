@@ -20,7 +20,7 @@ services:
       context: .
       dockerfile: Dockerfile
     env_file:
-      - app/config.env
+      - config.env
     container_name: ocr_backend
     restart: always
     depends_on:

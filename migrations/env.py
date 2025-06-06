@@ -1,30 +1,26 @@
 from logging.config import fileConfig
-
+from dotenv import load_dotenv
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
-
-from alembic import context
+from alembic import context, op
 from sqlmodel import SQLModel
+import os
 
-# this is the Alembic Config object, which provides
-# access to the values within the .ini file in use.
+load_dotenv()
 config = context.config
 
+config.set_main_option("DB_USER", os.environ["DB_USER"])
+config.set_main_option("DB_PASSWORD", os.environ["DB_PASSWORD"])
+config.set_main_option("DB_HOST", os.environ["DB_HOST"])
+config.set_main_option("DB_NAME", os.environ["DB_NAME"])
+
 # Interpret the config file for Python logging.
-# This line sets up loggers basically.
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 # add your model's MetaData object here
-# for 'autogenerate' support
-# from myapp import mymodel
-# target_metadata = mymodel.Base.metadata
 target_metadata = SQLModel.metadata
 
-# other values from the config, defined by the needs of env.py,
-# can be acquired:
-# my_important_option = config.get_main_option("my_important_option")
-# ... etc.
 
 
 def run_migrations_offline() -> None:
