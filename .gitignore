@@ -1,4 +1,3 @@
-alembic.ini
 config.ini
 *.env
 __pycache__/
