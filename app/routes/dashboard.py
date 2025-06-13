@@ -33,9 +33,7 @@ async def dashboard(request: Request,
         dashboard_file = "dashboard.html"
     else:
         raise HTTPException(status_code=404, detail="Dashboard not found")
-    
-    logger.info(request.session['userinfo'])
-    
+        
     return templates.TemplateResponse(
         dashboard_file, 
         {
