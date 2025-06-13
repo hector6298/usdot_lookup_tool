@@ -9,6 +9,7 @@ class OCRResultCreate(SQLModel):
     extracted_text: str | None = Field(default=None, max_length=250)
     filename: str = Field(nullable=False, max_length=250)
     user_id: str = Field(nullable=False)
+    org_id: str = Field(nullable=False)
     
 class OCRResult(SQLModel, table=True):
     """Represents an OCR result in the database."""    

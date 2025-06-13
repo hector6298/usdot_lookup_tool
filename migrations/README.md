@@ -8,3 +8,5 @@ docker compose exec web alembic revision --autogenerate -m "Initial migration"
 
 ## Apply the migration to the database
 docker compose exec web alembic upgrade head
+
+docker compose exec web alembic history
