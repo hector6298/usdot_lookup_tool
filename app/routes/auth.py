@@ -69,7 +69,7 @@ async def callback(request: Request,
     request.session['userinfo'] = token['userinfo']
 
     # Create user in DB if not exists
-    save_user_org_membership(token)
+    save_user_org_membership(db, token)
 
     return RedirectResponse(url=request.url_for("dashboard", dashboard_type="carriers"))
 
