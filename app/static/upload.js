@@ -45,17 +45,43 @@ const Upload = {
         const form = document.getElementById("upload-form");
         const fileInput = document.getElementById("file-input");
         const statusDiv = document.getElementById("status");
+        
+        // default div state
+        statusDiv.style.display = "none";
+        statusDiv.textContent = "";
 
         const files = fileInput.files;
         if (files.length === 0) {
             statusDiv.textContent = "Please select images.";
+            statusDiv.style.display = "block";
             return;
         }
 
         const formData = new FormData();
         for (let i = 0; i < files.length; i++) {
-            const file = files[i];
+            let file = files[i];
+
+            if (file.type === "image/heic" || file.type === "image/heif") {
+                statusDiv.textContent = `Converting ${file.name} from HEIC to PNG...`;
+                statusDiv.style.display = "block";
+
+                try {
+                    const pngBlob = await heic2any({
+                        blob: file,
+                        toType: "image/png",
+                        quality: 0.9,
+                    });
+                    file = new File([pngBlob], file.name.replace(/\.heic$/i, ".png"), { type: "image/png" });
+                } catch (error) {
+                    console.error(`Error converting ${file.name}:`, error);
+                    statusDiv.textContent = `❌ Failed to convert ${file.name}`;
+                    statusDiv.style.display = "block";
+                    return;
+                }
+            }
+
             statusDiv.textContent = `Compressing ${file.name}...`;
+            statusDiv.style.display = "block";
 
             try {
                 const compressedBlob = await Upload.compressImage(file, 1000, 1000, 0.7);
@@ -63,11 +89,13 @@ const Upload = {
             } catch (error) {
                 console.error(`Error compressing ${file.name}:`, error);
                 statusDiv.textContent = `❌ Failed to compress ${file.name}`;
+                statusDiv.style.display = "block";
                 return;
             }
         }
 
         statusDiv.textContent = "Uploading images...";
+        statusDiv.style.display = "block";
         try {
             const response = await fetch("/upload", {
                 method: "POST",
@@ -76,15 +104,18 @@ const Upload = {
 
             if (response.ok) {
                 statusDiv.textContent = "✅ Images uploaded successfully!";
+                statusDiv.style.display = "block";
                 setTimeout(() => {
                     location.reload();
                 }, 500);
             } else {
                 statusDiv.textContent = "❌ Upload failed.";
+                statusDiv.style.display = "block";
             }
         } catch (error) {
             console.error("Error uploading images:", error);
             statusDiv.textContent = "❌ Upload failed.";
+            statusDiv.style.display = "block";
         }
     },
 

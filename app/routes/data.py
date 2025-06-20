@@ -1,5 +1,6 @@
 import logging
 import csv
+import os
 from enum import Enum
 from io import StringIO
 from fastapi import APIRouter, Depends, Request, HTTPException
@@ -8,12 +9,11 @@ from fastapi.templating import Jinja2Templates
 from sqlmodel import Session
 from app.database import get_db
 from app import crud
-from app.routes.verify_login import verify_login, verify_login_json_response
+from app.routes.auth import verify_login, verify_login_json_response
 from app.models import OCRResultResponse, CarrierData, CarrierWithEngagementResponse
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
-
 
 # Set up a module-level logger
 logger = logging.getLogger(__name__)
@@ -112,8 +112,8 @@ async def fetch_lookup_history(request: Request,
                           mailing_address=result.carrier_data.mailing_address if result.carrier_data else "",
                           timestamp=result.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
                           filename=result.filename,
-                          user_id=result.user_id,
-                          org_id=result.org_id)
+                          user_id=result.app_user.user_email,
+                          org_id=result.app_org.org_name)
         for result in results
     ]
     logger.info(f"🔍 Lookup history data fetched successfully: {results}")    
@@ -214,7 +214,7 @@ async def export_csv(request: Request,
                                    org_id=org_id,
                                    valid_dot_only=False)
     
-    writer.writerow(["DOT Number", "Legal Name", "Phone Number", "Mailing Address", "Created At", "Carrier Interested", "Client Contacted"])
+    writer.writerow(["DOT Number", "Legal Name", "Phone Number", "Mailing Address", "Created At", "Filename", "Created By"])
     for result in results:
 
         writer.writerow([
@@ -223,7 +223,8 @@ async def export_csv(request: Request,
             result.carrier_data.phone if result.carrier_data else "",
             result.carrier_data.mailing_address if result.carrier_data else "",
             result.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
-            result.filename
+            result.filename,
+            result.app_user.user_email
         ])
     
     logger.info(f"📥 Exporting {len(results)} carriers to CSV...")

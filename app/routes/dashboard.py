@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, Request, HTTPException
 from fastapi.templating import Jinja2Templates
 from sqlmodel import Session
 from app.database import get_db
-from app.routes.verify_login import verify_login
+from app.routes.auth import verify_login
 from app import crud
 
 router = APIRouter()

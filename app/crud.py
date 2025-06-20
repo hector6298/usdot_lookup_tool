@@ -1,7 +1,7 @@
 import re
 import logging
 from sqlmodel import Session
-from app.models import OCRResult, OCRResultCreate, CarrierData, CarrierChangeItem, CarrierEngagementStatus
+from app.models import OCRResult, OCRResultCreate, CarrierData, CarrierDataCreate, CarrierChangeItem, CarrierEngagementStatus, AppUser, AppOrg, UserOrgMembership
 from datetime import datetime
 from flatten_dict import flatten
 from fastapi import HTTPException
@@ -10,6 +10,65 @@ from sqlalchemy.orm import joinedload
 # Set up a module-level logger
 logger = logging.getLogger(__name__)
 
+def save_user_org_membership(db: Session, login_info) -> AppUser:
+    """Save a User record to the database."""
+    try:
+
+        user_record = AppUser(
+            user_id=login_info['sub'],
+            user_email=login_info['email'],
+            name=login_info.get('name', None),
+            first_name=login_info.get('given_name', None),
+            last_name=login_info.get('family_name', None)
+        )
+        org_record = AppOrg(
+            org_id=login_info.get('org_id', login_info['sub']),
+            org_name=login_info.get('org_name', login_info['email'])
+        )
+        membership_record = UserOrgMembership(
+            user_id=user_record.user_id, 
+            org_id=org_record.org_id
+        )
+        
+        #check if records already exist
+        existing_user = db.query(AppUser).filter(AppUser.id == user_record.user_id).first()
+        existing_org = db.query(AppOrg).filter(AppOrg.id == org_record.org_id).first()
+        existing_membership = db.query(UserOrgMembership).filter(UserOrgMembership.user_id == user_record.user_id,
+                                                                 UserOrgMembership.org_id == org_record.org_id).first()
+        if existing_user:
+            logger.info(f"🔍 User with ID {user_record.user_id} already exists. Updating fields.")
+            # update fields
+            for key, value in user_record.dict().items():
+                setattr(existing_user, key, value)
+            user_record = existing_user
+        if existing_org:
+            logger.info(f"🔍 Org with ID {org_record.org_id} already exists. Updating fields.")
+            # update fields
+            for key, value in org_record.dict().items():
+                setattr(existing_org, key, value)
+            org_record = existing_org
+        if existing_membership:
+            logger.info(f"🔍 Membership for user {user_record.user_id} and org {org_record.org_id} already exists. Skipping.")
+            membership_record = existing_membership
+        
+        # Commit User, Org and Membership records in a single transaction
+        logger.info("🔍 Saving App, Org, and membership to the database.")
+        db.add(user_record)
+        db.add(org_record)
+        db.add(membership_record)
+
+        db.commit()
+
+        db.refresh(user_record)
+        db.refresh(org_record)
+        db.refresh(membership_record)
+
+        logger.info(f"✅ User {user_record.user_id}, Org {org_record.org_id}, and memberships saved.")
+    except Exception as e:
+        logger.error(f"❌ Error saving User, Org, Membership: {e}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    
 def save_ocr_results_bulk(db: Session, ocr_results: list[OCRResultCreate]) -> list[OCRResult]:
     """Saves multiple OCR results to the database."""
     logger.info("🔍 Saving multiple OCR results to the database.")
@@ -23,7 +82,6 @@ def save_ocr_results_bulk(db: Session, ocr_results: list[OCRResultCreate]) -> li
 
             if not dot_reading:
                 logger.warning("❌ No DOT number found in OCR result.")
-                continue
             else:
                 logger.info(f"✅ DOT number extracted: {dot_reading}")
 
@@ -131,6 +189,9 @@ def get_ocr_results(db: Session,
     if valid_dot_only:
         logger.info("🔍 Filtering OCR results with a valid DOT number.")
         query = query.filter(OCRResult.dot_reading != None)
+
+    # Order by timestamp descending (newest first)
+    query = query.order_by(OCRResult.timestamp.desc())
     
     if offset is not None and limit is not None:
         logger.info(f"🔍 Applying range to OCR results: offset={offset}, limit={limit}")
@@ -195,6 +256,9 @@ def get_engagement_data(db: Session,
         logger.info("🔍 Filtering carrier data for contacted carriers.")
         carriers = carriers.filter(CarrierEngagementStatus.carrier_contacted == carrier_contacted)
 
+    # Order by timestamp descending (newest first)
+    carriers = carriers.order_by(CarrierEngagementStatus.created_at.desc())
+
     if offset is not None and limit is not None:
         logger.info(f"🔍 Applying offset: offset={offset}, limit={limit}")
         carriers = carriers.offset(offset).limit(limit)
@@ -220,29 +284,16 @@ def get_carrier_data_by_dot(db: Session, dot_number: str) -> CarrierData:
 
     return carrier
 
-def save_carrier_data(db: Session, carrier_data: dict) -> CarrierData:
+def save_carrier_data(db: Session, carrier_data: CarrierDataCreate) -> CarrierData:
     """Saves carrier data to the database, performing upsert based on DOT number."""
     logger.info("🔍 Saving carrier data to the database.")
-
-    # remove us_inspections key from carrier_data
-    carrier_data.pop('us_inspections', None)
-    carrier_data = flatten(carrier_data, reducer='underscore')
-
     try:
-        logger.info("🔍 Validating carrier data.")
-        carrier_record = CarrierData.model_validate(
-            carrier_data,
-            update={
-                "operation_classification": ', '.join(carrier_data["operation_classification"]),
-                "carrier_operation": ', '.join(carrier_data["carrier_operation"]),
-                "cargo_carried": ', '.join(carrier_data["cargo_carried"])
-            }
-        )
+        carrier_record = CarrierData.model_validate(carrier_data)
 
         # Check if the carrier with the same USDOT number already exists
-        existing_carrier = db.query(CarrierData).filter(CarrierData.usdot == carrier_data["usdot"]).first()
+        existing_carrier = db.query(CarrierData).filter(CarrierData.usdot == carrier_data.usdot).first()
         if existing_carrier:
-            logger.info(f"🔍 Carrier with USDOT {carrier_data['usdot']} exists. Updating record.")
+            logger.info(f"🔍 Carrier with USDOT {carrier_data.usdot} exists. Updating record.")
             for key, value in carrier_record.dict().items():
                 setattr(existing_carrier, key, value)
             db.commit()
@@ -285,7 +336,8 @@ def generate_engagement_records(db: Session,
             # Create a new engagement record
             engagement_record = CarrierEngagementStatus(
                 usdot=usdot,
-                org_id=org_id
+                org_id=org_id,
+                user_id=user_id,
             )
             engagement_records.append(engagement_record)
 
@@ -319,36 +371,26 @@ def save_engagement_records_bulk(db: Session,
 
 
 def generate_carrier_records(db: Session, 
-                             carrier_data: list[dict]) -> list[CarrierData]:
+                             carrier_data: list[CarrierDataCreate]) -> list[CarrierData]:
     """Saves multiple carrier data records to the database, performing upserts."""
     logger.info("🔍 Saving multiple carrier data records to the database.")
     carrier_records = []
     
     for data in carrier_data:
         try:
-            # remove us_inspections key from carrier_data
-            data.pop('us_inspections', None)
-            data = flatten(data, reducer='underscore')
-
             logger.info("🔍 Validating carrier data.")
-            carrier_record = CarrierData.model_validate(
-                data,
-                update={
-                    "operation_classification": ', '.join(data["operation_classification"]),
-                    "carrier_operation": ', '.join(data["carrier_operation"]),
-                    "cargo_carried": ', '.join(data["cargo_carried"])
-                }
-            )
+            carrier_record = CarrierData.model_validate(data)
 
             # Check if the carrier with the same USDOT number already exists
-            existing_carrier = db.query(CarrierData).filter(CarrierData.usdot == data["usdot"]).first()
+            existing_carrier = db.query(CarrierData).filter(CarrierData.usdot == data.usdot).first()
+            
             if existing_carrier:
-                logger.info(f"🔍 Carrier with USDOT {data['usdot']} exists. Updating record.")
+                logger.info(f"🔍 Carrier with USDOT {data.usdot} exists. Updating record.")
                 for key, value in carrier_record.dict().items():
                     setattr(existing_carrier, key, value)
                 carrier_records.append(existing_carrier)
             else:
-                logger.info(f"🔍 Carrier with USDOT {data['usdot']} does not exist. Inserting new record.")
+                logger.info(f"🔍 Carrier with USDOT {data.usdot} does not exist. Inserting new record.")
                 carrier_records.append(carrier_record)
 
         except Exception as e:
@@ -358,14 +400,15 @@ def generate_carrier_records(db: Session,
 
 
 def save_carrier_data_bulk(db: Session, 
-                           carrier_data: list[dict],
+                           carrier_data: list[CarrierDataCreate],
+                           user_id: str,
                            org_id: str) -> list[CarrierData]:
     """Saves multiple carrier data records to the database, performing upserts."""
-    usdot_numbers = [data["usdot"] for data in carrier_data]
+    usdot_numbers = [data.usdot for data in carrier_data if data.lookup_success_flag]
     carrier_records = generate_carrier_records(db, carrier_data)
     engagement_records = generate_engagement_records(db,
                                                     usdot_numbers,
-                                                    user_id=org_id,
+                                                    user_id=user_id,
                                                     org_id=org_id)
     if carrier_records and engagement_records and len(carrier_records) == len(engagement_records):
         try:

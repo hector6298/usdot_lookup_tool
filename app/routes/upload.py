@@ -5,8 +5,9 @@ from sqlmodel import Session
 from app.database import get_db
 from app.models import OCRResultCreate
 from app.crud import save_ocr_results_bulk, save_carrier_data_bulk
-from app.info_extraction import cloud_ocr_from_image_file, safer_web_lookup_from_dot
-from app.routes.verify_login import verify_login
+from app.helpers.ocr import cloud_ocr_from_image_file
+from app.helpers.safer_web import safer_web_lookup_from_dot
+from app.routes.auth import verify_login
 from google.cloud import vision
 from safer import CompanySnapshot
 from fastapi.responses import JSONResponse
@@ -41,8 +42,9 @@ async def upload_file(files: list[UploadFile] = File(...),
     for file in files:
         try:
             # Validate file type
-            if not file.filename.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp')):
-                logger.error("❌ Invalid file type. Only image files ('.png', '.jpg', '.jpeg', '.bmp') are allowed.")
+            supported_types = ('.png', '.jpg', '.jpeg', '.bmp', '.heic', '.heif')
+            if not file.filename.lower().endswith(supported_types):
+                logger.error(f"❌ Invalid file type. Only image files {supported_types} are allowed.")
                 invalid_files.append(file.filename)
                 continue         
                
@@ -69,13 +71,15 @@ async def upload_file(files: list[UploadFile] = File(...),
         for result in ocr_results:
             
             # Perform SAFER web lookup
-            safer_data = safer_web_lookup_from_dot(safer_client, int(result.dot_reading))
-            if safer_data:
-                safer_lookups.append(safer_data)
+            if result.dot_reading:
+                safer_data = safer_web_lookup_from_dot(safer_client, result.dot_reading)
+                if safer_data.lookup_success_flag:
+                    safer_lookups.append(safer_data)
            
         # Save carrier data to database
         if safer_lookups:
             _ = save_carrier_data_bulk(db, safer_lookups, 
+                                       user_id=user_id,
                                        org_id=org_id)
             logger.info(f"✅ Processed {len(ocr_results)} OCR results, {safer_lookups} carrier records saved.")
 

@@ -4,6 +4,39 @@ from typing import List, Optional
 from pydantic import computed_field, ConfigDict
 from sqlmodel import Relationship
 
+class AppUser(SQLModel, table=True):
+    """Represents an application user in the database."""
+    user_id: str = Field(primary_key=True)
+    user_email: str
+    name: str | None = None
+    first_name: str | None = None
+    last_name: str | None = None
+    is_active: bool = True
+
+    ocr_results: List["OCRResult"] = Relationship(back_populates="app_user")
+    carrier_engagement_status_usr: List["CarrierEngagementStatus"] = Relationship(back_populates="app_user")
+    user_org_membership: List["UserOrgMembership"] = Relationship(back_populates="app_user")
+
+class AppOrg(SQLModel, table=True):
+    """Represents an organization in the database."""
+    org_id: str = Field(primary_key=True)
+    org_name: str
+    is_active: bool = True
+
+    user_org_membership: List["UserOrgMembership"] = Relationship(back_populates="app_org")
+    carrier_engagement_status_org: List["CarrierEngagementStatus"] = Relationship(back_populates="app_org")
+    ocr_results: List["OCRResult"] = Relationship(back_populates="app_org")
+
+class UserOrgMembership(SQLModel, table=True):
+    """Represents a user's membership in an organization."""
+    user_id: str = Field(foreign_key="appuser.user_id", primary_key=True)
+    org_id: str = Field(foreign_key="apporg.org_id", primary_key=True)
+    is_active: bool = Field(default=True)
+    
+    app_user: AppUser = Relationship(back_populates="user_org_membership")
+    app_org: AppOrg = Relationship(back_populates="user_org_membership")
+
+
 class OCRResultCreate(SQLModel):
     """Schema for creating a new OCR result."""
     extracted_text: str | None = Field(default=None, max_length=250)
@@ -21,10 +54,12 @@ class OCRResult(SQLModel, table=True):
     dot_reading: str | None = Field(default=None, max_length=32, foreign_key="carrierdata.usdot")
     filename: str = Field(nullable=False, max_length=250)
     timestamp: datetime = Field(nullable=False)
-    user_id: str = Field(nullable=False)
-    org_id: str = Field(nullable=False)
+    user_id: str = Field(nullable=False, foreign_key="appuser.user_id")
+    org_id: str = Field(nullable=False, foreign_key="apporg.org_id")
     
     carrier_data: Optional["CarrierData"] = Relationship(back_populates="ocr_results")
+    app_user: AppUser = Relationship(back_populates="ocr_results")
+    app_org: AppOrg = Relationship(back_populates="ocr_results")
 
 class OCRResultResponse(SQLModel):
     """Schema for returning OCR result data."""
@@ -47,7 +82,158 @@ class CarrierChangeRequest(SQLModel):
     """Schema for carrier checkbox input."""
     changes: List[CarrierChangeItem] = Field(default_factory=list)
 
+
+class CarrierDataCreate(SQLModel):
+    model_config = ConfigDict(
+        populate_by_name=True,
+        orm_mode = True 
+    )
+    usdot: str
+    entity_type: Optional[str] = None
+    usdot_status: Optional[str] = None
+    legal_name: Optional[str] = None
+    dba_name: Optional[str] = None
+    physical_address: Optional[str] = None
+    mailing_address: Optional[str] = None
+    phone: Optional[str] = None
+    state_carrier_id: Optional[str] = None
+    mc_mx_ff_numbers: Optional[str] = None
+    duns_number: Optional[str] = None
+    power_units: Optional[int] = None
+    drivers: Optional[int] = None
+    mcs_150_form_date: Optional[str] = None  # Consider changing to datetime
+    mcs_150_mileage_year_mileage: Optional[int] = None
+    mcs_150_mileage_year_year: Optional[int] = None
+    out_of_service_date: Optional[str] = None  # Consider changing to datetime
+    operating_authority_status: Optional[str] = None
+    operation_classification: Optional[str] = None
+    carrier_operation: Optional[str] = None
+    hm_shipper_operation: Optional[str] = None
+    cargo_carried: Optional[str] = None
     
+    usa_vehicle_inspections: Optional[int] = Field(
+        default=None,
+        schema_extra={"validation_alias":"united_states_inspections_vehicle_inspections"}
+    )
+    usa_vehicle_out_of_service: Optional[int] = Field(
+        default=None,
+        schema_extra={"validation_alias":"united_states_inspections_vehicle_out_of_service"}
+    )
+    usa_vehicle_out_of_service_percent: Optional[str] = Field(
+        default=None,
+        schema_extra={"validation_alias":"united_states_inspections_vehicle_out_of_service_percent"}
+    )
+    usa_vehicle_national_average: Optional[str] = Field(
+        default=None,
+        schema_extra={"validation_alias":"united_states_inspections_vehicle_national_average"}
+    )
+    usa_driver_inspections: Optional[int] = Field(
+        default=None,
+        schema_extra={"validation_alias":"united_states_inspections_driver_inspections"}
+    )
+    usa_driver_out_of_service: Optional[int] = Field(
+        default=None,
+        schema_extra={"validation_alias":"united_states_inspections_driver_out_of_service"}
+    )
+    usa_driver_out_of_service_percent: Optional[str] = Field(
+        default=None,
+        schema_extra={"validation_alias":"united_states_inspections_driver_out_of_service_percent"}
+    )
+    usa_driver_national_average: Optional[str] = Field(
+        default=None,
+        schema_extra={"validation_alias":"united_states_inspections_driver_national_average"}
+    )
+    usa_hazmat_inspections: Optional[int] = Field(
+        default=None,
+        schema_extra={"validation_alias":"united_states_inspections_hazmat_inspections"}
+    )
+    usa_hazmat_out_of_service: Optional[int] = Field(
+        default=None,
+        schema_extra={"validation_alias":"united_states_inspections_hazmat_out_of_service"}
+    )
+    usa_hazmat_out_of_service_percent: Optional[str] = Field(
+        default=None,
+        schema_extra={"validation_alias":"united_states_inspections_hazmat_out_of_service_percent"}
+    )
+    usa_hazmat_national_average: Optional[str] = Field(
+        default=None,
+        schema_extra={"validation_alias":"united_states_inspections_hazmat_national_average"}
+    )
+    usa_iep_inspections: Optional[int] = Field(
+        default=None,
+        schema_extra={"validation_alias":"united_states_inspections_iep_inspections"}
+    )
+    usa_iep_out_of_service: Optional[int] = Field(
+        default=None,
+        schema_extra={"validation_alias":"united_states_inspections_iep_out_of_service"}
+    )
+    usa_iep_out_of_service_percent: Optional[str] = Field(
+        default=None,
+        schema_extra={"validation_alias":"united_states_inspections_iep_out_of_service_percent"}
+    )
+    usa_iep_national_average: Optional[str] = Field(
+        default=None,
+        schema_extra={"validation_alias":"united_states_inspections_iep_national_average"}
+    )
+    
+    usa_crashes_tow: Optional[int] = Field(
+        default=None,
+        schema_extra={"validation_alias":"united_states_crashes_tow"}
+    )
+    usa_crashes_fatal: Optional[int] = Field(
+        default=None,
+        schema_extra={"validation_alias":"united_states_crashes_fatal"}
+    )
+    usa_crashes_injury: Optional[int] = Field(
+        default=None,
+        schema_extra={"validation_alias":"united_states_crashes_injury"}
+    )
+    usa_crashes_total: Optional[int] = Field(
+        default=None,
+        schema_extra={"validation_alias":"united_states_crashes_total"}
+    )
+    
+    canada_driver_out_of_service: Optional[int] = Field(
+        default=None,
+        schema_extra={"validation_alias":"canada_inspections_driver_out_of_service"}
+    )
+    canada_driver_out_of_service_percent: Optional[str] = Field(
+        default=None,
+        schema_extra={"validation_alias":"canada_inspections_driver_out_of_service_percent"}
+    )
+    canada_driver_inspections: Optional[int] = Field(
+        default=None,
+        schema_extra={"validation_alias":"canada_inspections_driver_inspections"}
+    )
+    canada_vehicle_out_of_service: Optional[int] = Field(
+        default=None,
+        schema_extra={"validation_alias":"canada_inspections_vehicle_out_of_service"}
+    )
+    canada_vehicle_out_of_service_percent: Optional[str] = Field(
+        default=None,
+        schema_extra={"validation_alias":"canada_inspections_vehicle_out_of_service_percent"}
+    )
+    canada_vehicle_inspections: Optional[int] = Field(
+        default=None,
+        schema_extra={"validation_alias":"canada_inspections_vehicle_inspections"}
+    )
+    
+    canada_crashes_tow: Optional[int] = None
+    canada_crashes_fatal: Optional[int] = None
+    canada_crashes_injury: Optional[int] = None
+    canada_crashes_total: Optional[int] = None
+    
+    safety_rating_date: Optional[str] = None  # Consider changing to datetime
+    safety_review_date: Optional[str] = None  # Consider changing to datetime
+    safety_rating: Optional[str] = None
+    safety_type: Optional[str] = None
+    
+    latest_update: Optional[str] = None  # Consider changing to datetime
+    url: Optional[str] = None
+
+    lookup_success_flag: bool
+
+
 class CarrierData(SQLModel, table=True):
     model_config = ConfigDict(
         populate_by_name=True,
@@ -76,86 +262,34 @@ class CarrierData(SQLModel, table=True):
     hm_shipper_operation: Optional[str] = None
     cargo_carried: Optional[str] = None
     
-    usa_vehicle_inspections: Optional[int] = Field(
-        schema_extra={"validation_alias":"united_states_inspections_vehicle_inspections"}
-    )
-    usa_vehicle_out_of_service: Optional[int] = Field(
-        schema_extra={"validation_alias":"united_states_inspections_vehicle_out_of_service"}
-    )
-    usa_vehicle_out_of_service_percent: Optional[str] = Field(
-        schema_extra={"validation_alias":"united_states_inspections_vehicle_out_of_service_percent"}
-    )
-    usa_vehicle_national_average: Optional[str] = Field(
-        schema_extra={"validation_alias":"united_states_inspections_vehicle_national_average"}
-    )
-    usa_driver_inspections: Optional[int] = Field(
-        schema_extra={"validation_alias":"united_states_inspections_driver_inspections"}
-    )
-    usa_driver_out_of_service: Optional[int] = Field(
-        schema_extra={"validation_alias":"united_states_inspections_driver_out_of_service"}
-    )
-    usa_driver_out_of_service_percent: Optional[str] = Field(
-        schema_extra={"validation_alias":"united_states_inspections_driver_out_of_service_percent"}
-    )
-    usa_driver_national_average: Optional[str] = Field(
-        schema_extra={"validation_alias":"united_states_inspections_driver_national_average"}
-    )
-    usa_hazmat_inspections: Optional[int] = Field(
-        schema_extra={"validation_alias":"united_states_inspections_hazmat_inspections"}
-    )
-    usa_hazmat_out_of_service: Optional[int] = Field(
-        schema_extra={"validation_alias":"united_states_inspections_hazmat_out_of_service"}
-    )
-    usa_hazmat_out_of_service_percent: Optional[str] = Field(
-        schema_extra={"validation_alias":"united_states_inspections_hazmat_out_of_service_percent"}
-    )
-    usa_hazmat_national_average: Optional[str] = Field(
-        schema_extra={"validation_alias":"united_states_inspections_hazmat_national_average"}
-    )
-    usa_iep_inspections: Optional[int] = Field(
-        schema_extra={"validation_alias":"united_states_inspections_iep_inspections"}
-    )
-    usa_iep_out_of_service: Optional[int] = Field(
-        schema_extra={"validation_alias":"united_states_inspections_iep_out_of_service"}
-    )
-    usa_iep_out_of_service_percent: Optional[str] = Field(
-        schema_extra={"validation_alias":"united_states_inspections_iep_out_of_service_percent"}
-    )
-    usa_iep_national_average: Optional[str] = Field(
-        schema_extra={"validation_alias":"united_states_inspections_iep_national_average"}
-    )
+    usa_vehicle_inspections: Optional[int] = None
+    usa_vehicle_out_of_service: Optional[int] = None
+    usa_vehicle_out_of_service_percent: Optional[str] = None
+    usa_vehicle_national_average: Optional[str] = None
+    usa_driver_inspections: Optional[int] = None 
+    usa_driver_out_of_service: Optional[int] = None 
+    usa_driver_out_of_service_percent: Optional[str] = None
+    usa_driver_national_average: Optional[str] = None 
+    usa_hazmat_inspections: Optional[int] = None 
+    usa_hazmat_out_of_service: Optional[int] = None 
+    usa_hazmat_out_of_service_percent: Optional[str] = None
+    usa_hazmat_national_average: Optional[str] = None 
+    usa_iep_inspections: Optional[int] = None 
+    usa_iep_out_of_service: Optional[int] = None 
+    usa_iep_out_of_service_percent: Optional[str]  = None
+    usa_iep_national_average: Optional[str] = None 
     
-    usa_crashes_tow: Optional[int] = Field(
-        schema_extra={"validation_alias":"united_states_crashes_tow"}
-    )
-    usa_crashes_fatal: Optional[int] = Field(
-        schema_extra={"validation_alias":"united_states_crashes_fatal"}
-    )
-    usa_crashes_injury: Optional[int] = Field(
-        schema_extra={"validation_alias":"united_states_crashes_injury"}
-    )
-    usa_crashes_total: Optional[int] = Field(
-        schema_extra={"validation_alias":"united_states_crashes_total"}
-    )
+    usa_crashes_tow: Optional[int]  = None
+    usa_crashes_fatal: Optional[int]  = None
+    usa_crashes_injury: Optional[int]  = None
+    usa_crashes_total: Optional[int] = None
     
-    canada_driver_out_of_service: Optional[int] = Field(
-        schema_extra={"validation_alias":"canada_inspections_driver_out_of_service"}
-    )
-    canada_driver_out_of_service_percent: Optional[str] = Field(
-        schema_extra={"validation_alias":"canada_inspections_driver_out_of_service_percent"}
-    )
-    canada_driver_inspections: Optional[int] = Field(
-        schema_extra={"validation_alias":"canada_inspections_driver_inspections"}
-    )
-    canada_vehicle_out_of_service: Optional[int] = Field(
-        schema_extra={"validation_alias":"canada_inspections_vehicle_out_of_service"}
-    )
-    canada_vehicle_out_of_service_percent: Optional[str] = Field(
-        schema_extra={"validation_alias":"canada_inspections_vehicle_out_of_service_percent"}
-    )
-    canada_vehicle_inspections: Optional[int] = Field(
-        schema_extra={"validation_alias":"canada_inspections_vehicle_inspections"}
-    )
+    canada_driver_out_of_service: Optional[int]  = None
+    canada_driver_out_of_service_percent: Optional[str] = None
+    canada_driver_inspections: Optional[int]  = None
+    canada_vehicle_out_of_service: Optional[int]  = None
+    canada_vehicle_out_of_service_percent: Optional[str] = None
+    canada_vehicle_inspections: Optional[int]  = None
     
     canada_crashes_tow: Optional[int] = None
     canada_crashes_fatal: Optional[int] = None
@@ -177,7 +311,8 @@ class CarrierData(SQLModel, table=True):
 
 class CarrierEngagementStatus(SQLModel, table=True):
     usdot: str = Field(foreign_key="carrierdata.usdot", primary_key=True)
-    org_id: str = Field(primary_key=True)
+    org_id: str = Field(primary_key=True, foreign_key="apporg.org_id")
+    user_id: str = Field(nullable=False, foreign_key="appuser.user_id")
     created_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
 
     carrier_interested: bool = Field(default=False, nullable=False)
@@ -200,6 +335,8 @@ class CarrierEngagementStatus(SQLModel, table=True):
 
     # Relationship attributes
     carrier_data: Optional["CarrierData"] = Relationship(back_populates="carrier_engagement_status")
+    app_user: AppUser = Relationship(back_populates="carrier_engagement_status_usr")
+    app_org: AppOrg = Relationship(back_populates="carrier_engagement_status_org")
 
 class CarrierWithEngagementResponse(SQLModel):
     usdot: str
