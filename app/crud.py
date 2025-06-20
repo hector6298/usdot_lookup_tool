@@ -15,8 +15,8 @@ def save_user_org_membership(db: Session, login_info) -> AppUser:
     try:
 
         user_record = AppUser(
-            user_id=login_info['sub'],
-            user_email=login_info['email'],
+            user_id=login_info['userinfo']['sub'],
+            user_email=login_info['userinfo']['email'],
             name=login_info.get('name', None),
             first_name=login_info.get('given_name', None),
             last_name=login_info.get('family_name', None)
