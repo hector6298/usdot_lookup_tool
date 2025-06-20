@@ -5,7 +5,7 @@ from sqlmodel import Session
 from app.database import get_db
 from app.models import OCRResultCreate
 from app.crud import save_ocr_results_bulk, save_carrier_data_bulk
-from app.helpers.ocr import cloud_ocr_from_image_file
+from app.helpers.ocr import cloud_ocr_from_image_file, generate_dot_record
 from app.helpers.safer_web import safer_web_lookup_from_dot
 from app.routes.auth import verify_login
 from google.cloud import vision
@@ -54,6 +54,7 @@ async def upload_file(files: list[UploadFile] = File(...),
                                          filename=file.filename,
                                          user_id=user_id,
                                          org_id=org_id)
+            ocr_record = generate_dot_record(ocr_record)
             ocr_records.append(ocr_record)
             valid_files.append(file.filename)
         except Exception as e:

@@ -6,6 +6,7 @@ from datetime import datetime
 from flatten_dict import flatten
 from fastapi import HTTPException
 from sqlalchemy.orm import joinedload
+from app.helpers.ocr import generate_dot_record
 
 # Set up a module-level logger
 logger = logging.getLogger(__name__)
@@ -69,48 +70,22 @@ def save_user_org_membership(db: Session, login_info) -> AppUser:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
     
-def save_ocr_results_bulk(db: Session, ocr_results: list[OCRResultCreate]) -> list[OCRResult]:
+def save_ocr_results_bulk(db: Session, ocr_results: list[OCRResult]) -> list[OCRResult]:
     """Saves multiple OCR results to the database."""
     logger.info("🔍 Saving multiple OCR results to the database.")
-    ocr_records = []
-    for ocr_result in ocr_results:
+
+    if ocr_results:
         try:
-            # Extract the 10-digit number following "DOT"
-            logger.info("🔍 Extracting DOT number from OCR result.")
-            match = re.search(r'\b(?:USDOT|DOT)[- ]?(\d+)\b', ocr_result.extracted_text)
-            dot_reading = match.group(1) if match else None
-
-            if not dot_reading:
-                logger.warning("❌ No DOT number found in OCR result.")
-            else:
-                logger.info(f"✅ DOT number extracted: {dot_reading}")
-
-            # Validate and update the OCR result
-            ocr_record = OCRResult.model_validate(
-                ocr_result, 
-                update={
-                    "timestamp": datetime.now(),
-                    "dot_reading": dot_reading
-                }
-            )
-
-            ocr_records.append(ocr_record)
-
-        except Exception as e:
-            logger.error(f"❌ Error processing OCR result: {e}")
-    
-    if ocr_records:
-        try:
-            logger.info(f"🔍 Saving {len(ocr_records)} OCR results to the database in bulk.")
-            db.add_all(ocr_records)
+            logger.info(f"🔍 Saving {len(ocr_results)} OCR results to the database in bulk.")
+            db.add_all(ocr_results)
             db.commit()
 
             # Refresh all records to get the latest state
-            for record in ocr_records:
+            for record in ocr_results:
                 db.refresh(record)
 
             logger.info("✅ All OCR results saved successfully.")
-            return ocr_records
+            return ocr_results
         except Exception as e:
             logger.error(f"❌ Error saving OCR results in bulk: {e}")
             db.rollback()
