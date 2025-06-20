@@ -23,7 +23,7 @@ def get_db():
 
 def init_db():
     """Initialize the database."""
-    SQLModel.metadata.create_all(bind=engine)
+    #SQLModel.metadata.create_all(bind=engine)
     print("Database initialized.")
 
 if __name__ == "__main__":
