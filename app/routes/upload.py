@@ -62,13 +62,12 @@ async def upload_file(files: list[UploadFile] = File(...),
     if not ocr_records:
         raise HTTPException(status_code=400, detail="No valid files were processed.")
     
-    # Save to database using schema
-    ocr_results = save_ocr_results_bulk(db, ocr_records)
 
-    if ocr_results:
+
+    if ocr_records:
         logger.info("✅ All OCR results saved successfully.")
         safer_lookups = []
-        for result in ocr_results:
+        for result in ocr_records:
             
             # Perform SAFER web lookup
             if result.dot_reading:
@@ -76,6 +75,9 @@ async def upload_file(files: list[UploadFile] = File(...),
                 if safer_data.lookup_success_flag:
                     safer_lookups.append(safer_data)
            
+        # Save to database using schema
+        ocr_results = save_ocr_results_bulk(db, ocr_records)
+        
         # Save carrier data to database
         if safer_lookups:
             _ = save_carrier_data_bulk(db, safer_lookups, 
