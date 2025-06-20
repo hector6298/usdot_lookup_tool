@@ -74,16 +74,17 @@ async def upload_file(files: list[UploadFile] = File(...),
                 safer_data = safer_web_lookup_from_dot(safer_client, result.dot_reading)
                 if safer_data.lookup_success_flag:
                     safer_lookups.append(safer_data)
-           
-        # Save to database using schema
-        ocr_results = save_ocr_results_bulk(db, ocr_records)
-        
+
         # Save carrier data to database
         if safer_lookups:
             _ = save_carrier_data_bulk(db, safer_lookups, 
                                        user_id=user_id,
                                        org_id=org_id)
-            logger.info(f"✅ Processed {len(ocr_results)} OCR results, {safer_lookups} carrier records saved.")
+                                       
+        # Save to database using schema
+        ocr_results = save_ocr_results_bulk(db, ocr_records)       
+
+        logger.info(f"✅ Processed {len(ocr_results)} OCR results, {safer_lookups} carrier records saved.")
 
     # Collect all OCR result IDs
     ocr_result_ids = [
