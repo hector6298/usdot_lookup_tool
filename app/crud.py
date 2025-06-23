@@ -15,16 +15,19 @@ def save_user_org_membership(db: Session, login_info) -> AppUser:
     """Save a User record to the database."""
     try:
 
+        user_id = login_info['userinfo']['sub']
+        user_email = login_info['userinfo']['email']
+
         user_record = AppUser(
-            user_id=login_info['userinfo']['sub'],
-            user_email=login_info['userinfo']['email'],
+            user_id=user_id,
+            user_email=user_email,
             name=login_info.get('name', None),
             first_name=login_info.get('given_name', None),
             last_name=login_info.get('family_name', None)
         )
         org_record = AppOrg(
-            org_id=login_info.get('org_id', login_info['sub']),
-            org_name=login_info.get('org_name', login_info['email'])
+            org_id=login_info.get('org_id', user_id),
+            org_name=login_info.get('org_name', user_email)
         )
         membership_record = UserOrgMembership(
             user_id=user_record.user_id, 
@@ -96,36 +99,19 @@ def save_ocr_results_bulk(db: Session, ocr_results: list[OCRResult]) -> list[OCR
 
 
 # OCR CRUD operations
-def save_single_ocr_result(db: Session, ocr_result: OCRResultCreate) -> OCRResult:
+def save_single_ocr_result(db: Session, ocr_result: OCRResult) -> OCRResult:
     """Saves OCR result to the database."""
-    # Extract the 10-digit number following "DOT"
-    logger.info("🔍 Extracting DOT number from OCR result.")
-    match = re.search(r'\b(?:USDOT|DOT)[- ](\d+)\b', ocr_result.extracted_text)
-    dot_reading = match.group(1) if match else None
-
-    if not dot_reading:
-        logger.error("❌ No DOT number found in OCR result.")
-    else:
-        logger.info(f"✅ DOT number extracted: {dot_reading}")
-
     try:
         logger.info("🔍 Performing OCRResult data validation.")
         # Validate and update the OCR result
-        ocr_record = OCRResult.model_validate(
-            ocr_result, 
-            update={
-                "timestamp": datetime.now(),
-                "dot_reading": dot_reading
-            }
-        )
 
         logger.info("🔍 Saving OCR result to the database.")
-        db.add(ocr_record)
+        db.add(ocr_result)
         db.commit()
-        db.refresh(ocr_record)
+        db.refresh(ocr_result)
 
-        logger.info(f"✅ OCR result saved with ID: {ocr_record.id}")
-        return ocr_record
+        logger.info(f"✅ OCR result saved with ID: {ocr_result.id}")
+        return ocr_result
 
     except Exception as e:
         logger.error(f"❌ Error saving OCR result: {e}")
