@@ -35,8 +35,8 @@ def save_user_org_membership(db: Session, login_info) -> AppUser:
         )
         
         #check if records already exist
-        existing_user = db.query(AppUser).filter(AppUser.id == user_record.user_id).first()
-        existing_org = db.query(AppOrg).filter(AppOrg.id == org_record.org_id).first()
+        existing_user = db.query(AppUser).filter(AppUser.user_id == user_record.user_id).first()
+        existing_org = db.query(AppOrg).filter(AppOrg.org_id == org_record.org_id).first()
         existing_membership = db.query(UserOrgMembership).filter(UserOrgMembership.user_id == user_record.user_id,
                                                                  UserOrgMembership.org_id == org_record.org_id).first()
         if existing_user:
