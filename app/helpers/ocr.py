@@ -1,9 +1,9 @@
 import logging
+import re
 from google.cloud import vision
 from google.cloud.vision import ImageAnnotatorClient
 from fastapi import UploadFile, File
-from app.models import OCRResult, OCRResultCreate
-import re
+from app.models.ocr_results import OCRResult, OCRResultCreate
 from datetime import datetime
 # Set up a module-level logger
 logger = logging.getLogger(__name__)

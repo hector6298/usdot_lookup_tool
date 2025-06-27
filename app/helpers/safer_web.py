@@ -1,7 +1,7 @@
 import logging
 from flatten_dict import flatten
 from safer import CompanySnapshot
-from app.models import CarrierDataCreate
+from app.models.carrier_data import CarrierDataCreate
 
 # Set up a module-level logger
 logger = logging.getLogger(__name__)

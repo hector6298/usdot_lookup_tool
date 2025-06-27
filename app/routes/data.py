@@ -1,16 +1,18 @@
 import logging
 import csv
-import os
-from enum import Enum
 from io import StringIO
 from fastapi import APIRouter, Depends, Request, HTTPException
 from fastapi.responses import StreamingResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from sqlmodel import Session
 from app.database import get_db
-from app import crud
+from app.crud.engagement import get_engagement_data, update_carrier_engagement
+from app.crud.carrier_data import get_carrier_data_by_dot
+from app.crud.ocr_results import get_ocr_results
 from app.routes.auth import verify_login, verify_login_json_response
-from app.models import OCRResultResponse, CarrierData, CarrierWithEngagementResponse
+from app.models.ocr_results import OCRResultResponse
+from app.models.carrier_data import CarrierData
+from app.models.engagement import CarrierWithEngagementResponse
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -35,7 +37,7 @@ async def fetch_carriers(request: Request,
                 if 'org_id' in request.session['userinfo'] else user_id)
     
     logger.info("🔍 Fetching carrier data...")
-    carriers = crud.get_engagement_data(db, 
+    carriers = get_engagement_data(db, 
                                        org_id=org_id,
                                        offset=offset,
                                        carrier_contacted=client_contacted,
@@ -67,7 +69,7 @@ def fetch_carrier(request: Request,
                 db: Session = Depends(get_db)):
     """Fetch and display carrier details based on DOT number."""
     logger.info(f"🔍 Fetching carrier details for DOT number: {dot_number}")
-    carrier = crud.get_carrier_data_by_dot(db, dot_number)
+    carrier = get_carrier_data_by_dot(db, dot_number)
 
     # If no carrier data is found, return a message
     if not carrier:
@@ -98,7 +100,7 @@ async def fetch_lookup_history(request: Request,
                 if 'org_id' in request.session['userinfo'] else user_id)
 
     logger.info("🔍 Fetching lookup history data...")
-    results = crud.get_ocr_results(db, 
+    results = get_ocr_results(db, 
                                     org_id=org_id,
                                     offset=offset,
                                     limit=limit,
@@ -138,7 +140,7 @@ async def update_carrier_interests(request: Request,
             if not dot_number or not field or value is None:
                 raise HTTPException(status_code=400, detail="Invalid input data")
 
-            crud.update_carrier_engagement(db, change_item)
+            update_carrier_engagement(db, change_item)
             
         return JSONResponse(status_code=200, 
                             content={"status": "ok", "message": "Changes updated successfully"})
@@ -163,7 +165,7 @@ async def export_csv(request: Request,
     writer = csv.writer(output)
 
     logger.info("🔍 Fetching carrier data...")
-    results = crud.get_engagement_data(db, 
+    results = get_engagement_data(db, 
                                        org_id=org_id)
     
     writer.writerow(["DOT Number", "Legal Name", "Phone Number", 
@@ -210,7 +212,7 @@ async def export_csv(request: Request,
     writer = csv.writer(output)
 
     logger.info("🔍 Fetching lookup history data...")
-    results = crud.get_ocr_results(db, 
+    results = get_ocr_results(db, 
                                    org_id=org_id,
                                    valid_dot_only=False)
     

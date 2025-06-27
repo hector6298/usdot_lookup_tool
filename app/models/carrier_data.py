@@ -1,87 +1,11 @@
 from sqlmodel import Field, SQLModel
-from datetime import datetime
-from typing import List, Optional
-from pydantic import computed_field, ConfigDict
+from typing import List, Optional, TYPE_CHECKING
+from pydantic import ConfigDict
 from sqlmodel import Relationship
 
-class AppUser(SQLModel, table=True):
-    """Represents an application user in the database."""
-    user_id: str = Field(primary_key=True)
-    user_email: str
-    name: str | None = None
-    first_name: str | None = None
-    last_name: str | None = None
-    is_active: bool = True
-
-    ocr_results: List["OCRResult"] = Relationship(back_populates="app_user")
-    carrier_engagement_status_usr: List["CarrierEngagementStatus"] = Relationship(back_populates="app_user")
-    user_org_membership: List["UserOrgMembership"] = Relationship(back_populates="app_user")
-
-class AppOrg(SQLModel, table=True):
-    """Represents an organization in the database."""
-    org_id: str = Field(primary_key=True)
-    org_name: str
-    is_active: bool = True
-
-    user_org_membership: List["UserOrgMembership"] = Relationship(back_populates="app_org")
-    carrier_engagement_status_org: List["CarrierEngagementStatus"] = Relationship(back_populates="app_org")
-    ocr_results: List["OCRResult"] = Relationship(back_populates="app_org")
-
-class UserOrgMembership(SQLModel, table=True):
-    """Represents a user's membership in an organization."""
-    user_id: str = Field(foreign_key="appuser.user_id", primary_key=True)
-    org_id: str = Field(foreign_key="apporg.org_id", primary_key=True)
-    is_active: bool = Field(default=True)
-    
-    app_user: AppUser = Relationship(back_populates="user_org_membership")
-    app_org: AppOrg = Relationship(back_populates="user_org_membership")
-
-
-class OCRResultCreate(SQLModel):
-    """Schema for creating a new OCR result."""
-    extracted_text: str | None = Field(default=None, max_length=250)
-    filename: str = Field(nullable=False, max_length=250)
-    user_id: str = Field(nullable=False)
-    org_id: str = Field(nullable=False)
-    
-class OCRResult(SQLModel, table=True):
-    """Represents an OCR result in the database."""    
-    model_config = ConfigDict(
-        orm_mode = True 
-    )
-    id: int = Field(default=None, primary_key=True)
-    extracted_text: str | None = Field(default=None, max_length=250)
-    dot_reading: str | None = Field(default=None, max_length=32, foreign_key="carrierdata.usdot")
-    filename: str = Field(nullable=False, max_length=250)
-    timestamp: datetime = Field(nullable=False)
-    user_id: str = Field(nullable=False, foreign_key="appuser.user_id")
-    org_id: str = Field(nullable=False, foreign_key="apporg.org_id")
-    
-    carrier_data: Optional["CarrierData"] = Relationship(back_populates="ocr_results")
-    app_user: AppUser = Relationship(back_populates="ocr_results")
-    app_org: AppOrg = Relationship(back_populates="ocr_results")
-
-class OCRResultResponse(SQLModel):
-    """Schema for returning OCR result data."""
-    dot_reading: str | None
-    legal_name: str | None
-    phone: str | None
-    mailing_address: str | None
-    timestamp: str
-    filename: str
-    user_id: str
-    org_id: str
-    
-class CarrierChangeItem(SQLModel):
-    """Schema for carrier checkbox input."""
-    usdot: str
-    field: str
-    value: bool | datetime | str
-
-class CarrierChangeRequest(SQLModel):
-    """Schema for carrier checkbox input."""
-    changes: List[CarrierChangeItem] = Field(default_factory=list)
-
+if TYPE_CHECKING:
+    from app.models.ocr_results import OCRResult
+    from app.models.engagement import CarrierEngagementStatus
 
 class CarrierDataCreate(SQLModel):
     model_config = ConfigDict(
@@ -305,46 +229,5 @@ class CarrierData(SQLModel, table=True):
     url: Optional[str] = None
 
     # Relationship attributes
-    ocr_results: List[OCRResult] = Relationship(back_populates="carrier_data")
+    ocr_results: List["OCRResult"] = Relationship(back_populates="carrier_data")
     carrier_engagement_status: Optional["CarrierEngagementStatus"] = Relationship(back_populates="carrier_data")
-
-
-class CarrierEngagementStatus(SQLModel, table=True):
-    usdot: str = Field(foreign_key="carrierdata.usdot", primary_key=True)
-    org_id: str = Field(primary_key=True, foreign_key="apporg.org_id")
-    user_id: str = Field(nullable=False, foreign_key="appuser.user_id")
-    created_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
-
-    carrier_interested: bool = Field(default=False, nullable=False)
-    carrier_interested_timestamp: datetime = Field(default=None, nullable=True)
-    carrier_interested_by_user_id: str = Field(default=None, nullable=True)
-
-    carrier_contacted: bool = Field(default=False, nullable=False)
-    carrier_contacted_timestamp: datetime = Field(default=None, nullable=True)
-    carrier_contacted_by_user_id: str = Field(default=None, nullable=True)
-
-    carrier_followed_up: bool = Field(default=False, nullable=False)
-    carrier_followed_up_timestamp: datetime = Field(default=None, nullable=True)
-    carrier_followed_up_by_user_id: str = Field(default=None, nullable=True)
-    carrier_follow_up_by_date: datetime = Field(default=None, nullable=True)
-
-    carrier_emailed: bool = Field(default=False, nullable=False)
-    carrier_emailed_timestamp: datetime = Field(default=None, nullable=True)
-    carrier_emailed_by_user_id: str = Field(default=None, nullable=True)
-    rental_notes: str | None = Field(default=None, max_length=360)
-
-    # Relationship attributes
-    carrier_data: Optional["CarrierData"] = Relationship(back_populates="carrier_engagement_status")
-    app_user: AppUser = Relationship(back_populates="carrier_engagement_status_usr")
-    app_org: AppOrg = Relationship(back_populates="carrier_engagement_status_org")
-
-class CarrierWithEngagementResponse(SQLModel):
-    usdot: str
-    legal_name: str
-    phone: Optional[str]
-    mailing_address: str
-    created_at: str
-    carrier_interested: bool
-    carrier_contacted: bool
-    carrier_followed_up: bool
-    carrier_follow_up_by_date: Optional[str]

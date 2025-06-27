@@ -3,8 +3,9 @@ import logging
 from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, Request
 from sqlmodel import Session
 from app.database import get_db
-from app.models import OCRResultCreate
-from app.crud import save_ocr_results_bulk, save_carrier_data_bulk
+from app.models.ocr_results import OCRResultCreate
+from app.crud.ocr_results import save_ocr_results_bulk
+from app.crud.carrier_data import save_carrier_data_bulk
 from app.helpers.ocr import cloud_ocr_from_image_file, generate_dot_record
 from app.helpers.safer_web import safer_web_lookup_from_dot
 from app.routes.auth import verify_login

@@ -5,7 +5,7 @@ from fastapi.templating import Jinja2Templates
 from sqlmodel import Session
 from app.database import get_db
 from app.routes.auth import verify_login
-from app import crud
+from app.crud.carrier_data import get_carrier_data_by_dot
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -51,7 +51,7 @@ def fetch_carrier(request: Request,
                 db: Session = Depends(get_db)):
     """Fetch and display carrier details based on DOT number."""
     logger.info(f"🔍 Fetching carrier details for DOT number: {dot_number}")
-    carrier = crud.get_carrier_data_by_dot(db, dot_number)
+    carrier = get_carrier_data_by_dot(db, dot_number)
 
     # If no carrier data is found, return a message
     if not carrier:

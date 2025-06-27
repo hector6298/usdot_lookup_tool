@@ -4,7 +4,7 @@ from fastapi import APIRouter, Request, HTTPException, status, Depends
 from fastapi.responses import RedirectResponse, JSONResponse
 from sqlmodel import Session
 from app.auth_setup import oauth
-from app.crud import save_user_org_membership
+from app.crud.user_org_membership import save_user_org_membership
 from app.database import get_db
 
 router = APIRouter()
