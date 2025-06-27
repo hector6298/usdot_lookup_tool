@@ -16,3 +16,5 @@ httpx==0.25.2
 alembic
 python-dotenv
 openpyxl
+sqlalchemy
+sqlalchemy-utils
