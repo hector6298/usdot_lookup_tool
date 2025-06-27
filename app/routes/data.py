@@ -1,6 +1,7 @@
 import logging
 import csv
-from io import StringIO
+from io import StringIO, BytesIO
+from openpyxl import Workbook
 from fastapi import APIRouter, Depends, Request, HTTPException
 from fastapi.responses import StreamingResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
@@ -149,32 +150,30 @@ async def update_carrier_interests(request: Request,
         raise HTTPException(status_code=500, detail=str(e))
     
 
-@router.get("/data/export/carriers",
-            dependencies=[Depends(verify_login)])
-async def export_csv(request: Request,
-                     db: Session = Depends(get_db)):
-    """Export carrier data to a CSV file."""
+@router.get("/data/export/carriers", dependencies=[Depends(verify_login)])
+async def export_carriers(request: Request, db: Session = Depends(get_db)):
+    """Export carrier data to an Excel file."""
 
     user_id = request.session['userinfo']['sub']
     org_id = (request.session['userinfo']['org_id']
                 if 'org_id' in request.session['userinfo'] else user_id)
-    logger.info(f"🔍 Fetching carrier data for org ID: {org_id} to export.")
+    logger.info(f"🔍 Fetching carrier data for org ID: {org_id} to export (Excel).")
 
-    # Create a CSV in memory
-    output = StringIO()
-    writer = csv.writer(output)
+    results = get_engagement_data(db, org_id=org_id)
 
-    logger.info("🔍 Fetching carrier data...")
-    results = get_engagement_data(db, 
-                                       org_id=org_id)
-    
-    writer.writerow(["DOT Number", "Legal Name", "Phone Number", 
-                     "Mailing Address", "Created At", 
-                     "Client Contacted?", "Carrier Followed Up?",
-                     "Carrier Follow Up by Date", "Carrier Interested"])
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Carriers"
+
+    # Write header
+    ws.append([
+        "DOT Number", "Legal Name", "Phone Number", "Mailing Address", "Created At",
+        "Client Contacted?", "Carrier Followed Up?", "Carrier Follow Up by Date", "Carrier Interested"
+    ])
+
+    # Write data rows
     for result in results:
-
-        writer.writerow([
+        ws.append([
             result.usdot,
             result.carrier_data.legal_name,
             result.carrier_data.phone,
@@ -182,58 +181,61 @@ async def export_csv(request: Request,
             result.created_at.strftime("%Y-%m-%d %H:%M:%S"),
             result.carrier_contacted,
             result.carrier_followed_up,
-            result.carrier_follow_up_by_date.strftime("%Y-%m-%d") 
-                if result.carrier_follow_up_by_date else None,
+            result.carrier_follow_up_by_date.strftime("%Y-%m-%d") if result.carrier_follow_up_by_date else None,
             result.carrier_interested,
         ])
 
-    logger.info(f"📥 Exporting {len(results)} carriers to CSV...")
+    # Save to in-memory bytes buffer
+    output = BytesIO()
+    wb.save(output)
     output.seek(0)
-    logger.info("📥 CSV export completed successfully.")
-    
-    # Return the CSV as a streaming response
-    response = StreamingResponse(output, media_type="text/csv")
-    response.headers["Content-Disposition"] = "attachment; filename=carrier_data.csv"
+
+    response = StreamingResponse(output, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    response.headers["Content-Disposition"] = "attachment; filename=carrier_data.xlsx"
     return response
 
-@router.get("/data/export/lookup_history",
-            dependencies=[Depends(verify_login)])
-async def export_csv(request: Request, 
-                     db: Session = Depends(get_db)):
-    """Export carrier data to a CSV file."""
+
+@router.get("/data/export/lookup_history", dependencies=[Depends(verify_login)])
+async def export_lookup_history(request: Request, db: Session = Depends(get_db)):
+    """Export lookup history to an Excel file."""
 
     user_id = request.session['userinfo']['sub']
     org_id = (request.session['userinfo']['org_id']
                 if 'org_id' in request.session['userinfo'] else user_id)
-    logger.info(f"🔍 Fetching lookup data for org ID: {org_id} to export.")
+    logger.info(f"🔍 Fetching lookup history for org ID: {org_id} to export (Excel).")
 
-    # Create a CSV in memory
-    output = StringIO()
-    writer = csv.writer(output)
+    results = get_ocr_results(db, org_id=org_id, valid_dot_only=False, eager_relations=True)
 
-    logger.info("🔍 Fetching lookup history data...")
-    results = get_ocr_results(db, 
-                                   org_id=org_id,
-                                   valid_dot_only=False)
-    
-    writer.writerow(["DOT Number", "Legal Name", "Phone Number", "Mailing Address", "Created At", "Filename", "Created By"])
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Lookup History"
+
+    # Write header
+    ws.append([
+        "DOT Number", "Legal Name", "Phone Number", "Mailing Address",
+        "Created At", "Filename", "Created By"
+    ])
+
+    # Write data rows
     for result in results:
-
-        writer.writerow([
+        ws.append([
             result.dot_reading,
             result.carrier_data.legal_name if result.carrier_data else "",
             result.carrier_data.phone if result.carrier_data else "",
             result.carrier_data.mailing_address if result.carrier_data else "",
             result.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
             result.filename,
-            result.app_user.user_email
+            result.app_user.user_email if hasattr(result.app_user, "user_email") else "",
         ])
-    
-    logger.info(f"📥 Exporting {len(results)} carriers to CSV...")
+
+    # Save to in-memory bytes buffer
+    output = BytesIO()
+    wb.save(output)
     output.seek(0)
-    logger.info("📥 CSV export completed successfully.")
-    
-    # Return the CSV as a streaming response
-    response = StreamingResponse(output, media_type="text/csv")
-    response.headers["Content-Disposition"] = "attachment; filename=carrier_data.csv"
+
+    response = StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+    response.headers["Content-Disposition"] = "attachment; filename=lookup_history.xlsx"
     return response
