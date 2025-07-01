@@ -18,6 +18,9 @@ def safer_web_lookup_from_dot(safer_client: CompanySnapshot,
             logger.info(f"✅ SAFER web lookup results found: {results}")
 
             results = results.to_dict()
+            if results['usdot'] != dot_number:
+                logger.warning(f"⚠ SAFER web lookup returned a different DOT number: original = {dot_number}, safer = {results['usdot']}")
+                results['usdot'] = dot_number  # Ensure usdot is same as the input
             results.pop('us_inspections', None)
             results = flatten(results, reducer='underscore')
 
