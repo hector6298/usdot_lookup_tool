@@ -127,7 +127,8 @@ def save_carrier_data_bulk(db: Session,
             db.add_all(carrier_records)
             db.add_all(engagement_records)
             db.commit()
-
+            
+            
             # Refresh all records to get the latest state
             for carrier_record, engagement_record in zip(carrier_records, engagement_records):
                 db.refresh(carrier_record)

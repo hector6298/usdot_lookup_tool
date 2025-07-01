@@ -2,6 +2,7 @@ from sqlmodel import Field, SQLModel
 from typing import List, Optional, TYPE_CHECKING
 from pydantic import ConfigDict
 from sqlmodel import Relationship
+from sqlalchemy import Column, BigInteger
 
 if TYPE_CHECKING:
     from app.models.ocr_results import OCRResult
@@ -26,7 +27,10 @@ class CarrierDataCreate(SQLModel):
     power_units: Optional[int] = None
     drivers: Optional[int] = None
     mcs_150_form_date: Optional[str] = None  # Consider changing to datetime
-    mcs_150_mileage_year_mileage: Optional[int] = None
+    mcs_150_mileage_year_mileage: Optional[int] = Field(
+        default=None,
+        sa_column=Column(BigInteger)
+    )
     mcs_150_mileage_year_year: Optional[int] = None
     out_of_service_date: Optional[str] = None  # Consider changing to datetime
     operating_authority_status: Optional[str] = None
@@ -177,7 +181,9 @@ class CarrierData(SQLModel, table=True):
     power_units: Optional[int] = None
     drivers: Optional[int] = None
     mcs_150_form_date: Optional[str] = None  # Consider changing to datetime
-    mcs_150_mileage_year_mileage: Optional[int] = None
+    mcs_150_mileage_year_mileage: Optional[int] = Field(
+        sa_column=Column(BigInteger)
+    )
     mcs_150_mileage_year_year: Optional[int] = None
     out_of_service_date: Optional[str] = None  # Consider changing to datetime
     operating_authority_status: Optional[str] = None

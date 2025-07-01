@@ -40,6 +40,8 @@ const Upload = {
     },
 
     handleFormSubmit: async function (event) {
+        //calculate time to process all files
+        const startTime = performance.now();
         event.preventDefault();
 
         const form = document.getElementById("upload-form");
@@ -117,6 +119,10 @@ const Upload = {
             statusDiv.textContent = "❌ Upload failed.";
             statusDiv.style.display = "block";
         }
+        const endTime = performance.now();
+        console.log(`Total processing time: ${(endTime - startTime).toFixed(2)} ms`);
+        statusDiv.textContent += ` Processing time: ${(endTime - startTime).toFixed(2)} ms`;
+        statusDiv.style.display = "block";
     },
 
     init: function () {

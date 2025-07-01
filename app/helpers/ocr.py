@@ -33,13 +33,13 @@ async def cloud_ocr_from_image_file(vision_client: ImageAnnotatorClient,
     return ocr_text
 
 
-def generate_dot_record(ocr_result: OCRResultCreate) -> str:
+def generate_dot_record(ocr_result: OCRResultCreate) -> OCRResult:
     """Extract DOT number from OCR text."""
     try:
         # Extract the 10-digit number following "DOT"
         logger.info("🔍 Extracting DOT number from OCR result.")
-        match = re.search(r'\b(?:USDOT|DOT)[- ]?(\d+)\b', ocr_result.extracted_text)
-        dot_reading = match.group(1) if match else None
+        match = re.search(r'\b(?:US\s*DOT|USDOT|DOT)[- ]?(\d+)\b', ocr_result.extracted_text, re.IGNORECASE)
+        dot_reading = match.group(1) if match else "0000000" # 0000000 is the orphan record so the foreign key is maintained
 
         if not dot_reading:
             logger.warning("❌ No DOT number found in OCR result.")

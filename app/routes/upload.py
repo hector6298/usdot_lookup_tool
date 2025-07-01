@@ -65,14 +65,13 @@ async def upload_file(files: list[UploadFile] = File(...),
         raise HTTPException(status_code=400, detail="No valid files were processed.")
     
 
-
     if ocr_records:
         logger.info("✅ All OCR results saved successfully.")
         safer_lookups = []
         for result in ocr_records:
             
-            # Perform SAFER web lookup
-            if result.dot_reading:
+            # Perform SAFER web lookup for valid DOT readings (00000000 is the orphan record)
+            if result.dot_reading and result.dot_reading != "0000000":
                 safer_data = safer_web_lookup_from_dot(safer_client, result.dot_reading)
                 if safer_data.lookup_success_flag:
                     safer_lookups.append(safer_data)
