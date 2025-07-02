@@ -38,8 +38,8 @@ def generate_dot_record(ocr_result: OCRResultCreate) -> OCRResult:
     try:
         # Extract the 10-digit number following "DOT"
         logger.info("🔍 Extracting DOT number from OCR result.")
-        match = re.search(r'\b(?:US\s*DOT|USDOT|DOT)[- ]?(\d+)\b', ocr_result.extracted_text, re.IGNORECASE)
-        dot_reading = match.group(1) if match else "0000000" # 0000000 is the orphan record so the foreign key is maintained
+        match = re.search(r'\b(?:US\s*DOT|USDOT|DOT)[\s#-]*?(\d{5,8})\b', ocr_result.extracted_text, re.IGNORECASE)
+        dot_reading = match.group(1) if match else "00000000" # 00000000 is the orphan record so the foreign key is maintained
 
         if not dot_reading:
             logger.warning("❌ No DOT number found in OCR result.")
