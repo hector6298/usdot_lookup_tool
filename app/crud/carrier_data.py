@@ -68,7 +68,7 @@ def save_carrier_data(db: Session, carrier_data: CarrierDataCreate) -> CarrierDa
             logger.info(f"✅ Carrier data updated: {existing_carrier.legal_name}")
             return existing_carrier
         else:
-            logger.info(f"🔍 Carrier with USDOT {carrier_data['usdot']} does not exist. Inserting new record.")
+            logger.info(f"🔍 Carrier with USDOT {carrier_data.usdot} does not exist. Inserting new record.")
             db.add(carrier_record)
             db.commit()
             db.refresh(carrier_record)
