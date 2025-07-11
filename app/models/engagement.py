@@ -12,6 +12,7 @@ class CarrierChangeItem(SQLModel):
     usdot: str
     field: str
     value: bool | datetime | str
+    user_id: Optional[str] = None
 
 class CarrierChangeRequest(SQLModel):
     """Schema for carrier checkbox input."""
