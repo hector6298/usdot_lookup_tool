@@ -33,13 +33,14 @@ async def dashboard(request: Request,
         dashboard_file = "dashboard.html"
     else:
         raise HTTPException(status_code=404, detail="Dashboard not found")
-        
+    logger.info(request.session.get("sf_connected", False))
     return templates.TemplateResponse(
         dashboard_file, 
         {
             "request": request, 
             "user_name": request.session['userinfo']['name'],
             "user_image": request.session['userinfo']['picture'],
+            "sf_connected": request.session.get("sf_connected", False),
             "dashboard_type": dashboard_type.value  # Use .value to get the string representation
         })
 

@@ -120,6 +120,42 @@ const Filters = {
             container.addEventListener("scroll", Filters.handleScroll);
         }
 
+        // Select all functionality
+        const selectAll = document.getElementById("select-all");
+        if (selectAll) {
+            selectAll.addEventListener("change", function () {
+                const checked = this.checked;
+                document.querySelectorAll(".carrier-select").forEach(cb => cb.checked = checked);
+            });
+        }
+
+        // Sync to Salesforce button
+        const syncBtn = document.getElementById("sync-to-salesforce");
+        if (syncBtn) {
+            syncBtn.addEventListener("click", async function () {
+                const selected = Array.from(document.querySelectorAll(".carrier-select:checked"))
+                    .map(cb => cb.getAttribute("data-usdot"));
+                if (selected.length === 0) {
+                    alert("Please select at least one carrier to sync.");
+                    return;
+                }
+                const response = await fetch("/salesforce/upload_carriers", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ carriers_usdot: selected })
+                });
+                if (response.ok) {
+                    alert("Sync request sent!");
+                    // Optionally, reload table data here
+                    Filters.offset = 0;
+                    Filters.hasMoreData = true;
+                    Filters.fetchData(false);
+                } else {
+                    alert("Failed to sync to Salesforce.");
+                }
+            });
+        }
+
         // Load the initial batch of data
         Filters.fetchData(false);
     },
@@ -131,6 +167,9 @@ const RowTemplates = {
     carriers: function (carrier) {
         return `
             <tr>
+            <td>
+                <input type="checkbox" class="carrier-select" data-usdot="${carrier.usdot}">
+            </td>
             <td><a href="/dashboards/carrier_details/${carrier.usdot}" class="dot-link">${carrier.usdot}</a></td>
             <td>${carrier.legal_name}</td>
             <td>${carrier.phone}</td>
@@ -159,6 +198,8 @@ const RowTemplates = {
             data-field="carrier_interested"
             ${carrier.carrier_interested ? "checked" : ""}>
             </td>
+            <td>${carrier.in_salesforce ? "Yes" : "No"}</td>
+            <td>${carrier.salesforce_synced_at ? carrier.salesforce_synced_at : ""}</td>
             </tr>
         `;
     },

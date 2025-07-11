@@ -4,7 +4,7 @@
 
 {% block content %}
 <!-- Main Content -->
-<div class="container" style="padding-top: 60px;">
+<div class="container">
     <h1 class="text-center text-white mb-4">AI USDOT Lookup Tool From Images!</h1>
         <div class="card p-4 shadow-sm">
             <h4>
@@ -74,10 +74,11 @@
         </form>
 
         <!-- Table Results dynamically loaded using js -->
-        <div id="scrollable-container" style="height: 500px; overflow-y: auto;">
+        <div id="scrollable-container" class="table-responsive" style="height: 500px; overflow-y: auto;">
             <table class="table table-bordered table-hover">
                 <thead>
                     <tr>
+                        <th>Select</th>
                         <th>DOT Number</th>
                         <th>Legal Name</th>
                         <th>Phone Number</th>
@@ -87,6 +88,7 @@
                         <th>Client Followed Up</th>
                         <th>Follow Up By Date</th>
                         <th>Carrier Interested</th>
+                        <th>In Salesforce</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -99,7 +101,10 @@
                 <i class="bi bi-download"></i>
             </a>
             <button id="revert-button" class="btn btn-secondary me-2" disabled>Revert</button>
-            <button id="submit-button" class="btn btn-primary" disabled>Submit</button>
+            <button id="submit-button" class="btn btn-primary me-2" disabled>Submit</button>
+            <button id="sync-to-salesforce" class="btn btn-success me-3">
+                <i class="bi bi-cloud-arrow-up"></i> CRM Sync
+            </button>
         </div>
     </div>
 

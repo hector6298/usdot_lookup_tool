@@ -5,6 +5,7 @@ from fastapi.responses import RedirectResponse, JSONResponse
 from sqlmodel import Session
 from app.auth_setup import oauth
 from app.crud.user_org_membership import save_user_org_membership
+from app.routes.salesforce import disconnect_salesforce
 from app.database import get_db
 
 router = APIRouter()
@@ -16,9 +17,14 @@ async def login(request: Request):
     Redirects the user to the Auth0 Universal Login (https://auth0.com/docs/authenticate/login/auth0-universal-login)
     """
     if 'id_token' not in request.session:  # it could be userinfo instead of id_token
+        if os.environ.get('ENVIRONMENT') == 'dev' and os.environ.get('NGROK_TUNNEL_URL', None):
+            redirect_uri = os.environ.get('NGROK_TUNNEL_URL') + '/callback'
+        else:
+            redirect_uri = request.url_for("callback")
+
         return await oauth.auth0.authorize_redirect(
             request,
-            redirect_uri=request.url_for("callback")
+            redirect_uri=redirect_uri
         )
     return RedirectResponse(url=request.url_for("dashboard", dashboard_type="carriers"))
 
@@ -29,9 +35,14 @@ async def signup(request: Request):
     Redirects the user to the Auth0 Universal Login (https://auth0.com/docs/authenticate/login/auth0-universal-login)
     """
     if 'id_token' not in request.session:  # it could be userinfo instead of id_token
+        if os.environ.get('ENVIRONMENT') == 'dev' and os.environ.get('NGROK_TUNNEL_URL', None):
+            redirect_uri = os.environ.get('NGROK_TUNNEL_URL') + '/callback'
+        else:
+            redirect_uri = request.url_for("callback")
+        
         return await oauth.auth0.authorize_redirect(
             request,
-            redirect_uri=request.url_for("callback"),
+            redirect_uri=redirect_uri,
             screen_hint="signup"
         )
     return RedirectResponse(url=request.url_for("dashboard", dashboard_type="carriers"))
@@ -42,12 +53,21 @@ def logout(request: Request):
     """
     Redirects the user to the Auth0 Universal Login (https://auth0.com/docs/authenticate/login/auth0-universal-login)
     """
+    if 'sf_connected' in request.session and request.session['sf_connected']:
+        # If the user is connected to Salesforce, we need to disconnect them first
+        disconnect_salesforce(request)
+
+    if os.environ.get('ENVIRONMENT') == 'dev' and os.environ.get('NGROK_TUNNEL_URL', None):
+        redirect_uri = os.environ.get('NGROK_TUNNEL_URL') + '/'
+    else:
+        redirect_uri = request.url_for("home")
+
     response = RedirectResponse(
         url="https://" + os.environ.get('AUTH0_DOMAIN')
             + "/v2/logout?"
             + urlencode(
                 {
-                    "returnTo": request.url_for("home"),
+                    "returnTo": redirect_uri,
                     "client_id": os.environ.get('AUTH0_CLIENT_ID'),
                 },
                 quote_via=quote_plus,
