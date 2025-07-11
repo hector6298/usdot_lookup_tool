@@ -2,6 +2,7 @@
 Test configuration and fixtures for the USDOT Lookup Tool tests.
 """
 import pytest
+import os
 from unittest.mock import Mock, MagicMock
 from sqlmodel import Session, SQLModel, create_engine
 from sqlalchemy import create_engine as sa_create_engine
@@ -10,7 +11,19 @@ from fastapi.testclient import TestClient
 from datetime import datetime
 from typing import Generator
 
-# Import models and schemas 
+# Set environment variables for tests
+os.environ.setdefault('DB_USER', 'test_user')
+os.environ.setdefault('DB_PASSWORD', 'test_password')
+os.environ.setdefault('DB_HOST', 'localhost')
+os.environ.setdefault('DB_PORT', '5432')
+os.environ.setdefault('DB_NAME', 'test_db')
+os.environ.setdefault('WEBAPP_SESSION_SECRET', 'test_secret')
+os.environ.setdefault('AUTH0_DOMAIN', 'test.auth0.com')
+os.environ.setdefault('AUTH0_CLIENT_ID', 'test_client_id')
+os.environ.setdefault('GCP_OCR_API_KEY', 'test_api_key')
+os.environ.setdefault('GOOGLE_APPLICATION_CREDENTIALS', '/tmp/fake_credentials.json')
+
+# Import models and schemas after setting env vars
 from app.models.carrier_data import CarrierData, CarrierDataCreate
 from app.models.engagement import CarrierEngagementStatus, CarrierChangeItem
 from app.models.ocr_results import OCRResult, OCRResultCreate
