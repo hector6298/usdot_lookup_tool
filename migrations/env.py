@@ -9,6 +9,9 @@ import os
 load_dotenv()
 config = context.config
 
+# Import all models so they are registered with SQLModel metadata
+from app.models import *
+
 config.set_main_option("DB_USER", os.environ["DB_USER"])
 config.set_main_option("DB_PASSWORD", os.environ["DB_PASSWORD"])
 config.set_main_option("DB_HOST", os.environ["DB_HOST"])

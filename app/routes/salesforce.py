@@ -3,6 +3,8 @@ from sqlmodel import Session, select
 from fastapi.responses import RedirectResponse, JSONResponse
 from app.database import get_db
 from app.crud.oauth import get_valid_salesforce_token, upsert_salesforce_token, delete_salesforce_token
+from app.crud.sobject_sync_history import create_sync_history_record
+from app.crud.sobject_sync_status import upsert_sync_status
 from app.models.carrier_data import CarrierData
 from datetime import datetime
 import urllib.parse
@@ -221,10 +223,148 @@ async def upload_carriers_to_salesforce(
             if resp.status_code not in (200, 201):
                 logger.error(f"Salesforce upload failed with status {resp.status_code}: {resp.text}")
                 request.session["sf_connected"] = False
+                
+                # Log failed sync attempts for all carriers
+                for carrier in carriers:
+                    try:
+                        create_sync_history_record(
+                            db=db,
+                            usdot=carrier.usdot,
+                            sync_status="FAILED",
+                            sobject_type="account",
+                            user_id=user_id,
+                            org_id=org_id,
+                            detail=f"HTTP {resp.status_code}: {resp.text}"
+                        )
+                        upsert_sync_status(
+                            db=db,
+                            usdot=carrier.usdot,
+                            org_id=org_id,
+                            user_id=user_id,
+                            sync_status="FAILED"
+                        )
+                    except Exception as e:
+                        logger.error(f"Failed to log sync failure for USDOT {carrier.usdot}: {str(e)}")
+                
                 return JSONResponse(status_code=resp.status_code, content={"detail": f"Salesforce error: {resp.text}"})
         
-        logger.info(f"Successfully uploaded {len(records)} carriers to Salesforce.")
-        return JSONResponse(content=resp.json())
+        # Parse Salesforce response and log sync results
+        sf_response = resp.json()
+        sync_timestamp = datetime.utcnow()
+        
+        logger.info(f"Salesforce response: {sf_response}")
+        
+        # Create mapping from referenceId to carrier for result processing
+        carrier_map = {f"carrier_{carrier.usdot}": carrier for carrier in carriers}
+        
+        if sf_response.get("hasErrors", False):
+            # Handle response with errors
+            results = sf_response.get("results", [])
+            
+            for result in results:
+                reference_id = result.get("referenceId")
+                carrier = carrier_map.get(reference_id)
+                
+                if not carrier:
+                    logger.warning(f"Could not find carrier for referenceId: {reference_id}")
+                    continue
+                
+                if "errors" in result:
+                    # Failed sync
+                    error_details = []
+                    for error in result["errors"]:
+                        error_details.append(f"{error.get('statusCode', 'UNKNOWN')}: {error.get('message', 'Unknown error')}")
+                    detail = "; ".join(error_details)
+                    
+                    try:
+                        create_sync_history_record(
+                            db=db,
+                            usdot=carrier.usdot,
+                            sync_status="FAILED",
+                            sobject_type="account",
+                            user_id=user_id,
+                            org_id=org_id,
+                            detail=detail,
+                            sync_timestamp=sync_timestamp
+                        )
+                        upsert_sync_status(
+                            db=db,
+                            usdot=carrier.usdot,
+                            org_id=org_id,
+                            user_id=user_id,
+                            sync_status="FAILED"
+                        )
+                        logger.info(f"Logged failed sync for USDOT {carrier.usdot}: {detail}")
+                    except Exception as e:
+                        logger.error(f"Failed to log sync failure for USDOT {carrier.usdot}: {str(e)}")
+                
+                elif "id" in result:
+                    # Successful sync
+                    salesforce_id = result["id"]
+                    
+                    try:
+                        create_sync_history_record(
+                            db=db,
+                            usdot=carrier.usdot,
+                            sync_status="SUCCESS",
+                            sobject_type="account",
+                            user_id=user_id,
+                            org_id=org_id,
+                            sobject_id=salesforce_id,
+                            detail=f"Successfully created Account with ID: {salesforce_id}",
+                            sync_timestamp=sync_timestamp
+                        )
+                        upsert_sync_status(
+                            db=db,
+                            usdot=carrier.usdot,
+                            org_id=org_id,
+                            user_id=user_id,
+                            sync_status="SUCCESS",
+                            sobject_id=salesforce_id
+                        )
+                        logger.info(f"Logged successful sync for USDOT {carrier.usdot} -> Salesforce ID: {salesforce_id}")
+                    except Exception as e:
+                        logger.error(f"Failed to log sync success for USDOT {carrier.usdot}: {str(e)}")
+        else:
+            # All successful - process results
+            results = sf_response.get("results", [])
+            
+            for result in results:
+                reference_id = result.get("referenceId")
+                salesforce_id = result.get("id")
+                carrier = carrier_map.get(reference_id)
+                
+                if not carrier:
+                    logger.warning(f"Could not find carrier for referenceId: {reference_id}")
+                    continue
+                
+                if salesforce_id:
+                    try:
+                        create_sync_history_record(
+                            db=db,
+                            usdot=carrier.usdot,
+                            sync_status="SUCCESS",
+                            sobject_type="account",
+                            user_id=user_id,
+                            org_id=org_id,
+                            sobject_id=salesforce_id,
+                            detail=f"Successfully created Account with ID: {salesforce_id}",
+                            sync_timestamp=sync_timestamp
+                        )
+                        upsert_sync_status(
+                            db=db,
+                            usdot=carrier.usdot,
+                            org_id=org_id,
+                            user_id=user_id,
+                            sync_status="SUCCESS",
+                            sobject_id=salesforce_id
+                        )
+                        logger.info(f"Logged successful sync for USDOT {carrier.usdot} -> Salesforce ID: {salesforce_id}")
+                    except Exception as e:
+                        logger.error(f"Failed to log sync success for USDOT {carrier.usdot}: {str(e)}")
+        
+        logger.info(f"Successfully processed Salesforce sync response for {len(carriers)} carriers.")
+        return JSONResponse(content=sf_response)
     else:
         logger.error("Salesforce connection not established.")
         return JSONResponse(status_code=401, content={"detail": "Salesforce connection not established. Please connect first."})

@@ -36,8 +36,10 @@ class TestFetchCarriers:
             carrier.carrier_followed_up = False
             carrier.carrier_follow_up_by_date = None
         
-        with patch('app.routes.data.get_engagement_data') as mock_get_engagement:
+        with patch('app.routes.data.get_engagement_data') as mock_get_engagement, \
+             patch('app.routes.data.get_sync_status_for_usdots') as mock_get_sync_status:
             mock_get_engagement.return_value = mock_carriers
+            mock_get_sync_status.return_value = {}  # No sync status records
             
             # Act
             result = await fetch_carriers(
@@ -75,8 +77,10 @@ class TestFetchCarriers:
         mock_carriers[0].carrier_followed_up = False
         mock_carriers[0].carrier_follow_up_by_date = None
         
-        with patch('app.routes.data.get_engagement_data') as mock_get_engagement:
+        with patch('app.routes.data.get_engagement_data') as mock_get_engagement, \
+             patch('app.routes.data.get_sync_status_for_usdots') as mock_get_sync_status:
             mock_get_engagement.return_value = mock_carriers
+            mock_get_sync_status.return_value = {}  # No sync status records
             
             # Act
             result = await fetch_carriers(
