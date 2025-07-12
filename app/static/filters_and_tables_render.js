@@ -165,10 +165,18 @@ const Filters = {
 // Row templates for different table types
 const RowTemplates = {
     carriers: function (carrier) {
+        const isAlreadySynced = carrier.sf_sync_status === "SUCCESS";
+        const syncStatusDisplay = carrier.sf_sync_status === "SUCCESS" 
+            ? `<span class="badge bg-success">Synced</span>` 
+            : carrier.sf_sync_status === "FAILED" 
+                ? `<span class="badge bg-danger">Failed</span>`
+                : `<span class="badge bg-secondary">Not Synced</span>`;
+        
         return `
             <tr>
             <td>
-                <input type="checkbox" class="carrier-select" data-usdot="${carrier.usdot}">
+                <input type="checkbox" class="carrier-select" data-usdot="${carrier.usdot}" 
+                    ${isAlreadySynced ? 'disabled title="Already synced to Salesforce"' : ''}>
             </td>
             <td><a href="/dashboards/carrier_details/${carrier.usdot}" class="dot-link">${carrier.usdot}</a></td>
             <td>${carrier.legal_name}</td>
@@ -198,8 +206,10 @@ const RowTemplates = {
             data-field="carrier_interested"
             ${carrier.carrier_interested ? "checked" : ""}>
             </td>
-            <td>${carrier.in_salesforce ? "Yes" : "No"}</td>
-            <td>${carrier.salesforce_synced_at ? carrier.salesforce_synced_at : ""}</td>
+            <td>
+                ${syncStatusDisplay}
+                ${carrier.sf_sync_timestamp ? `<br><small class="text-muted">${carrier.sf_sync_timestamp}</small>` : ''}
+            </td>
             </tr>
         `;
     },

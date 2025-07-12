@@ -58,3 +58,7 @@ class CarrierWithEngagementResponse(SQLModel):
     carrier_contacted: bool
     carrier_followed_up: bool
     carrier_follow_up_by_date: Optional[str]
+    # Salesforce sync status fields
+    sf_sync_status: Optional[str] = None  # "SUCCESS", "FAILED", or None
+    sf_sobject_id: Optional[str] = None  # Salesforce ID if successful
+    sf_sync_timestamp: Optional[str] = None  # When last sync was attempted
