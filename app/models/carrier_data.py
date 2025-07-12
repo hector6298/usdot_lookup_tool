@@ -7,6 +7,7 @@ from sqlalchemy import Column, BigInteger
 if TYPE_CHECKING:
     from app.models.ocr_results import OCRResult
     from app.models.engagement import CarrierEngagementStatus
+    from app.models.sobject_sync_status import SObjectSyncStatus
 
 class CarrierDataCreate(SQLModel):
     model_config = ConfigDict(
@@ -237,3 +238,4 @@ class CarrierData(SQLModel, table=True):
     # Relationship attributes
     ocr_results: List["OCRResult"] = Relationship(back_populates="carrier_data")
     carrier_engagement_status: Optional["CarrierEngagementStatus"] = Relationship(back_populates="carrier_data")
+    sync_status: List["SObjectSyncStatus"] = Relationship(back_populates="carrier_data", cascade_delete=True)
