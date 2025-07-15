@@ -6,6 +6,7 @@ from sqlmodel import Session
 from app.database import get_db
 from app.routes.auth import verify_login
 from app.crud.carrier_data import get_carrier_data_by_dot
+from app.helpers.salesforce_status import get_salesforce_status_summary
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -33,14 +34,24 @@ async def dashboard(request: Request,
         dashboard_file = "dashboard.html"
     else:
         raise HTTPException(status_code=404, detail="Dashboard not found")
-    logger.info(request.session.get("sf_connected", False))
+    
+    # Get user info from session
+    user_id = request.session['userinfo']['sub']
+    org_id = request.session['userinfo'].get('org_id', 'default')
+    
+    # Get real-time Salesforce status and sync statistics
+    salesforce_status = await get_salesforce_status_summary(db, user_id, org_id)
+    
+    logger.info(f"Salesforce status for user {user_id}: {salesforce_status}")
+    
     return templates.TemplateResponse(
         dashboard_file, 
         {
             "request": request, 
             "user_name": request.session['userinfo']['name'],
             "user_image": request.session['userinfo']['picture'],
-            "sf_connected": request.session.get("sf_connected", False),
+            "sf_connected": salesforce_status['connected'],
+            "sf_status": salesforce_status,  # Pass full status including sync stats
             "dashboard_type": dashboard_type.value  # Use .value to get the string representation
         })
 
