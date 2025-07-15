@@ -10,6 +10,7 @@ from app.database import get_db
 from app.crud.engagement import get_engagement_data, update_carrier_engagement
 from app.crud.carrier_data import get_carrier_data_by_dot
 from app.crud.ocr_results import get_ocr_results
+from app.crud.sobject_sync_status import get_sync_status_for_usdots
 from app.routes.auth import verify_login, verify_login_json_response
 from app.models.ocr_results import OCRResultResponse
 from app.models.carrier_data import CarrierData
@@ -45,17 +46,28 @@ async def fetch_carriers(request: Request,
                                        carrier_interested=carrier_interested,
                                        limit=limit)
     
+    # Get sync status for all carriers in batch
+    usdots = [carrier.usdot for carrier in carriers]
+    sync_status_dict = get_sync_status_for_usdots(db, usdots, org_id) if usdots else {}
+    
     results = [
-        CarrierWithEngagementResponse(usdot=carrier.usdot,
-                                      legal_name=carrier.carrier_data.legal_name,
-                                      phone=carrier.carrier_data.phone,
-                                      mailing_address=carrier.carrier_data.mailing_address,
-                                      created_at=carrier.created_at.strftime("%Y-%m-%d %H:%M:%S"),
-                                      carrier_interested=carrier.carrier_interested,
-                                      carrier_contacted=carrier.carrier_contacted,
-                                      carrier_followed_up=carrier.carrier_followed_up,
-                                      carrier_follow_up_by_date=carrier.carrier_follow_up_by_date.strftime("%Y-%m-%d") 
-                                        if carrier.carrier_follow_up_by_date else None)
+        CarrierWithEngagementResponse(
+            usdot=carrier.usdot,
+            legal_name=carrier.carrier_data.legal_name,
+            phone=carrier.carrier_data.phone,
+            mailing_address=carrier.carrier_data.mailing_address,
+            created_at=carrier.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+            carrier_interested=carrier.carrier_interested,
+            carrier_contacted=carrier.carrier_contacted,
+            carrier_followed_up=carrier.carrier_followed_up,
+            carrier_follow_up_by_date=carrier.carrier_follow_up_by_date.strftime("%Y-%m-%d") 
+                if carrier.carrier_follow_up_by_date else None,
+            # Add sync status information
+            sf_sync_status=sync_status_dict[carrier.usdot].sync_status if carrier.usdot in sync_status_dict else None,
+            sf_sobject_id=sync_status_dict[carrier.usdot].sobject_id if carrier.usdot in sync_status_dict else None,
+            sf_sync_timestamp=sync_status_dict[carrier.usdot].updated_at.strftime("%Y-%m-%d %H:%M:%S") 
+                if carrier.usdot in sync_status_dict and sync_status_dict[carrier.usdot].updated_at else None
+        )
         for carrier in carriers
     ]
 
