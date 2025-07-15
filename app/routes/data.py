@@ -30,6 +30,11 @@ async def fetch_carriers(request: Request,
                     limit: int = 10,
                     carrier_interested: bool = None,
                     client_contacted: bool = None,
+                    usdot: str = None,
+                    legal_name: str = None,
+                    sf_sync_status: str = None,
+                    sort_by: str = None,
+                    sort_order: str = "desc",
                     db: Session = Depends(get_db)):
 
     """Return carrier results as JSON for the dashboard."""
@@ -44,6 +49,11 @@ async def fetch_carriers(request: Request,
                                        offset=offset,
                                        carrier_contacted=client_contacted,
                                        carrier_interested=carrier_interested,
+                                       usdot=usdot,
+                                       legal_name=legal_name,
+                                       sf_sync_status=sf_sync_status,
+                                       sort_by=sort_by,
+                                       sort_order=sort_order,
                                        limit=limit)
     
     # Get sync status for all carriers in batch

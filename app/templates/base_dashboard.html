@@ -104,6 +104,23 @@
             .container { max-width: 100%; }
             .card { padding: 1rem; }
             .table th, .table td { padding: 0.5rem; font-size: 0.95rem; }
+            /* Better mobile filter layout */
+            .row .col-lg-3, .row .col-md-6 {
+                margin-bottom: 1rem;
+            }
+            /* Stack filter buttons on mobile */
+            .d-flex.flex-wrap.gap-2 {
+                flex-direction: column;
+            }
+            .d-flex.flex-wrap.gap-2 .btn {
+                margin-bottom: 0.5rem;
+            }
+        }
+        /* Medium screens adjustments */
+        @media (max-width: 991.98px) {
+            .col-md-6 {
+                margin-bottom: 1rem;
+            }
         }
         /* Hide desktop sidebar on mobile, show offcanvas button */
         @media (max-width: 991.98px) {

@@ -114,6 +114,12 @@ const Filters = {
             filterForm.addEventListener("submit", Filters.handleFilterFormSubmit);
         }
 
+        // Attach reset sorting button handler
+        const resetSortingBtn = document.getElementById("reset-sorting");
+        if (resetSortingBtn) {
+            resetSortingBtn.addEventListener("click", Filters.handleResetSorting);
+        }
+
         // Attach scroll event handler
         const container = document.getElementById("scrollable-container");
         if (container) {
@@ -157,6 +163,25 @@ const Filters = {
         }
 
         // Load the initial batch of data
+        Filters.fetchData(false);
+    },
+
+    // Handle reset sorting functionality
+    handleResetSorting: function () {
+        // Reset sort dropdown to default (created_at)
+        const sortBySelect = document.getElementById("sort_by");
+        const sortOrderSelect = document.getElementById("sort_order");
+        
+        if (sortBySelect) {
+            sortBySelect.value = "created_at";
+        }
+        if (sortOrderSelect) {
+            sortOrderSelect.value = "desc";
+        }
+
+        // Reset state and fetch data
+        Filters.offset = 0;
+        Filters.hasMoreData = true;
         Filters.fetchData(false);
     },
     
