@@ -15,13 +15,7 @@ class SessionTimeoutMiddleware(BaseHTTPMiddleware):
 
         if last_activity:
             if now - last_activity > self.timeout:
-                if 'sf_connected' in session and session['sf_connected']:
-                    delete_salesforce_token(request.state.db, 
-                                            session.get("user_id"), 
-                                            session.get("org_id"), 
-                                            "salesforce")
-                session.clear()
-                return RedirectResponse("/login")
+                return RedirectResponse("/logout")
         session["last_activity"] = now
         response = await call_next(request)
         return response
