@@ -1,8 +1,10 @@
 import re
 import logging
 from sqlmodel import Session
+from sqlalchemy import asc, desc
 from app.models.carrier_data import CarrierData
 from app.models.engagement import CarrierChangeItem, CarrierEngagementStatus
+from app.models.sobject_sync_status import SObjectSyncStatus
 from datetime import datetime
 from fastapi import HTTPException
 
@@ -14,33 +16,79 @@ def get_engagement_data(db: Session,
                         offset: int = None, 
                         limit: int = None,
                         carrier_interested: bool = None,
-                        carrier_contacted: bool = None) -> list[CarrierEngagementStatus]:
+                        carrier_contacted: bool = None,
+                        usdot: str = None,
+                        legal_name: str = None,
+                        sf_sync_status: str = None,
+                        sort_by: str = None,
+                        sort_order: str = "desc") -> list[CarrierEngagementStatus]:
     """Retrieves carrier engagement statuses from the database."""
 
+    # Start with base query and join with carrier_data for filtering and sorting
+    query = db.query(CarrierEngagementStatus).join(CarrierData, CarrierEngagementStatus.usdot == CarrierData.usdot)
+    
+    # Left join with sync status for filtering and sorting
+    query = query.outerjoin(SObjectSyncStatus, 
+                           (CarrierEngagementStatus.usdot == SObjectSyncStatus.usdot) & 
+                           (CarrierEngagementStatus.org_id == SObjectSyncStatus.org_id))
+
     if org_id:
-        carriers = db.query(CarrierEngagementStatus).filter(CarrierEngagementStatus.org_id == org_id)
+        query = query.filter(CarrierEngagementStatus.org_id == org_id)
     else:
         logger.info("🔍 Fetching all carrier engagement status without group filtering.")
-        carriers = db.query(CarrierEngagementStatus)
 
+    # Apply filters
     if carrier_interested is not None:
         logger.info("🔍 Filtering carrier data for interested carriers.")
-        carriers = carriers.filter(CarrierEngagementStatus.carrier_interested == carrier_interested)
+        query = query.filter(CarrierEngagementStatus.carrier_interested == carrier_interested)
 
     if carrier_contacted is not None:
         logger.info("🔍 Filtering carrier data for contacted carriers.")
-        carriers = carriers.filter(CarrierEngagementStatus.carrier_contacted == carrier_contacted)
+        query = query.filter(CarrierEngagementStatus.carrier_contacted == carrier_contacted)
+        
+    if usdot:
+        logger.info(f"🔍 Filtering carrier data for USDOT: {usdot}")
+        query = query.filter(CarrierEngagementStatus.usdot.ilike(f"%{usdot}%"))
+        
+    if legal_name:
+        logger.info(f"🔍 Filtering carrier data for legal name: {legal_name}")
+        query = query.filter(CarrierData.legal_name.ilike(f"%{legal_name}%"))
+        
+    if sf_sync_status:
+        logger.info(f"🔍 Filtering carrier data for sync status: {sf_sync_status}")
+        if sf_sync_status.lower() == "not_synced":
+            query = query.filter(SObjectSyncStatus.sync_status.is_(None))
+        else:
+            query = query.filter(SObjectSyncStatus.sync_status == sf_sync_status.upper())
 
-    # Order by timestamp descending (newest first)
-    carriers = carriers.order_by(CarrierEngagementStatus.created_at.desc())
+    # Apply sorting
+    sort_order_func = desc if sort_order.lower() == "desc" else asc
+    
+    if sort_by:
+        if sort_by == "usdot":
+            query = query.order_by(sort_order_func(CarrierEngagementStatus.usdot))
+        elif sort_by == "legal_name":
+            query = query.order_by(sort_order_func(CarrierData.legal_name))
+        elif sort_by == "phone":
+            query = query.order_by(sort_order_func(CarrierData.phone))
+        elif sort_by == "created_at":
+            query = query.order_by(sort_order_func(CarrierEngagementStatus.created_at))
+        elif sort_by == "sf_sync_status":
+            query = query.order_by(sort_order_func(SObjectSyncStatus.sync_status))
+        else:
+            # Default to created_at desc
+            query = query.order_by(CarrierEngagementStatus.created_at.desc())
+    else:
+        # Default sorting by created_at descending (newest first)
+        query = query.order_by(CarrierEngagementStatus.created_at.desc())
 
     if offset is not None and limit is not None:
         logger.info(f"🔍 Applying offset: offset={offset}, limit={limit}")
-        carriers = carriers.offset(offset).limit(limit)
+        query = query.offset(offset).limit(limit)
     else:
         logger.info("🔍 Offset is disabled.")
 
-    carriers = carriers.all()
+    carriers = query.all()
 
     logger.info(f"✅ Found {len(carriers)} carrier engagement records.")
 

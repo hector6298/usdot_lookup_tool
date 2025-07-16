@@ -48,29 +48,44 @@
 
         <!-- Table filters -->
         <form id="filter-form" class="mb-4" data-dashboard-type="{{ dashboard_type }}">
-            <div class="row">
-                <div class="col-md-4">
-                    <label for="legal_name" class="form-label">Legal Name</label>
-                    <input type="text" id="legal_name" name="legal_name" class="form-control" placeholder="Enter legal name">
+            <div class="row align-items-end">
+                <div class="col-lg-3 col-md-6 mb-3">
+                    <input type="text" id="usdot" name="usdot" class="form-control" placeholder="Search USDOT Number">
                 </div>
-                <div class="col-md-4">
-                    <label for="carrier_interested" class="form-label">Carrier Interested</label>
-                    <select id="carrier_interested" name="carrier_interested" class="form-select">
-                        <option value="">All</option>
-                        <option value="true">Yes</option>
-                        <option value="false">No</option>
+                <div class="col-lg-3 col-md-6 mb-3">
+                    <select id="sf_sync_status" name="sf_sync_status" class="form-select">
+                        <option value="">Salesforce Sync Status</option>
+                        <option value="SUCCESS">Synced</option>
+                        <option value="FAILED">Failed</option>
+                        <option value="not_synced">Not Synced</option>
                     </select>
                 </div>
-                <div class="col-md-4">
-                    <label for="client_contacted" class="form-label">Client Contacted</label>
-                    <select id="client_contacted" name="client_contacted" class="form-select">
-                        <option value="">All</option>
-                        <option value="true">Yes</option>
-                        <option value="false">No</option>
+                <div class="col-lg-2 col-md-6 mb-3">
+                    <select id="sort_by" name="sort_by" class="form-select">
+                        <option value="created_at">Sort by Created Date</option>
+                        <option value="usdot">Sort by USDOT</option>
+                        <option value="legal_name">Sort by Legal Name</option>
+                        <option value="phone">Sort by Phone</option>
+                        <option value="sf_sync_status">Sort by Sync Status</option>
                     </select>
+                </div>
+                <div class="col-lg-2 col-md-6 mb-3">
+                    <select id="sort_order" name="sort_order" class="form-select">
+                        <option value="desc">Descending</option>
+                        <option value="asc">Ascending</option>
+                    </select>
+                </div>
+                <div class="col-lg-2 col-md-12 mb-3">
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary flex-fill">
+                            <i class="bi bi-funnel"></i> Filter
+                        </button>
+                        <button type="button" id="reset-sorting" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-clockwise"></i>
+                        </button>
+                    </div>
                 </div>
             </div>
-            <button type="submit" class="btn btn-primary mt-3">Apply Filters</button>
         </form>
 
         <!-- Table Results dynamically loaded using js -->
