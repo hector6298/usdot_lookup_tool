@@ -125,10 +125,67 @@ const Upload = {
         statusDiv.style.display = "block";
     },
 
+    handleManualFormSubmit: async function (event) {
+        event.preventDefault();
+
+        const form = document.getElementById("manual-form");
+        const usdotInput = document.getElementById("usdot-input");
+        const statusDiv = document.getElementById("status");
+        
+        // Default div state
+        statusDiv.style.display = "none";
+        statusDiv.textContent = "";
+
+        const usdotNumbers = usdotInput.value.trim();
+        if (!usdotNumbers) {
+            statusDiv.textContent = "Please enter USDOT numbers.";
+            statusDiv.style.display = "block";
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append("usdot_numbers", usdotNumbers);
+
+        statusDiv.textContent = "Processing USDOT numbers...";
+        statusDiv.style.display = "block";
+
+        try {
+            const response = await fetch("/upload/manual", {
+                method: "POST",
+                body: formData,
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                statusDiv.textContent = `✅ Processed ${result.valid_usdots.length} USDOT numbers successfully! ${result.successful_lookups} carrier records found.`;
+                if (result.invalid_usdots.length > 0) {
+                    statusDiv.textContent += ` (${result.invalid_usdots.length} invalid numbers ignored)`;
+                }
+                statusDiv.style.display = "block";
+                setTimeout(() => {
+                    location.reload();
+                }, 500);
+            } else {
+                const errorData = await response.json();
+                statusDiv.textContent = `❌ Error: ${errorData.detail || 'Processing failed'}`;
+                statusDiv.style.display = "block";
+            }
+        } catch (error) {
+            console.error("Error processing manual USDOT input:", error);
+            statusDiv.textContent = "❌ Processing failed.";
+            statusDiv.style.display = "block";
+        }
+    },
+
     init: function () {
-        const form = document.getElementById("upload-form");
-        if (form) {
-            form.addEventListener("submit", Upload.handleFormSubmit);
+        const uploadForm = document.getElementById("upload-form");
+        if (uploadForm) {
+            uploadForm.addEventListener("submit", Upload.handleFormSubmit);
+        }
+
+        const manualForm = document.getElementById("manual-form");
+        if (manualForm) {
+            manualForm.addEventListener("submit", Upload.handleManualFormSubmit);
         }
     },
 };

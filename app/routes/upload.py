@@ -1,9 +1,11 @@
 import os
 import logging
-from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, Request
+import re
+from datetime import datetime
+from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, Request, Form
 from sqlmodel import Session
 from app.database import get_db
-from app.models.ocr_results import OCRResultCreate
+from app.models.ocr_results import OCRResultCreate, OCRResult
 from app.crud.ocr_results import save_ocr_results_bulk
 from app.crud.carrier_data import save_carrier_data_bulk
 from app.helpers.ocr import cloud_ocr_from_image_file, generate_dot_record
@@ -100,6 +102,101 @@ async def upload_file(files: list[UploadFile] = File(...),
             "result_ids": ocr_result_ids,
             "valid_files": valid_files,
             "invalid_files": invalid_files
+        },
+        status_code=200
+    )
+
+
+@router.post("/upload/manual",
+             dependencies=[Depends(verify_login)])
+async def upload_manual_usdots(usdot_numbers: str = Form(...),
+                              request: Request = None,
+                              db: Session = Depends(get_db)):
+    """Process manually entered USDOT numbers."""
+    
+    user_id = request.session['userinfo']['sub']
+    org_id = (request.session['userinfo']['org_id'] 
+                if 'org_id' in request.session['userinfo'] else user_id)
+    
+    # Parse and validate USDOT numbers
+    if not usdot_numbers or not usdot_numbers.strip():
+        raise HTTPException(status_code=400, detail="No USDOT numbers provided.")
+    
+    # Split by commas and clean up
+    raw_usdots = [usdot.strip() for usdot in usdot_numbers.split(',')]
+    valid_usdots = []
+    invalid_usdots = []
+    
+    # Validate each USDOT number (should be numeric, typically 6-8 digits)
+    usdot_pattern = re.compile(r'^\d{6,8}$')
+    
+    for usdot in raw_usdots:
+        if usdot and usdot_pattern.match(usdot):
+            valid_usdots.append(usdot)
+        elif usdot:  # Not empty but invalid format
+            invalid_usdots.append(usdot)
+    
+    if not valid_usdots:
+        raise HTTPException(status_code=400, detail="No valid USDOT numbers found.")
+    
+    # Create OCR records for manual input (similar to image processing but with manual source)
+    ocr_create_records = []
+    for usdot in valid_usdots:
+        ocr_record = OCRResultCreate(
+            extracted_text=f"Manual input: {usdot}",
+            filename=f"manual_input_{usdot}",
+            user_id=user_id,
+            org_id=org_id
+        )
+        ocr_create_records.append(ocr_record)
+    
+    # Convert to OCRResult objects with dot_reading (similar to image processing pipeline)
+    ocr_records = []
+    for ocr_create in ocr_create_records:
+        # For manual input, we already know the DOT number, so we set it directly
+        ocr_result = OCRResult.model_validate(
+            ocr_create,
+            update={
+                "timestamp": datetime.now(),
+                "dot_reading": ocr_create.extracted_text.split(": ")[1]  # Extract USDOT from "Manual input: 123456"
+            }
+        )
+        ocr_records.append(ocr_result)
+    
+    logger.info(f"📝 Processing {len(valid_usdots)} manually entered USDOT numbers")
+    
+    # Perform SAFER web lookup for each valid USDOT
+    safer_lookups = []
+    for result in ocr_records:
+        if result.dot_reading and result.dot_reading != "0000000":
+            safer_data = safer_web_lookup_from_dot(safer_client, result.dot_reading)
+            if safer_data.lookup_success_flag:
+                safer_lookups.append(safer_data)
+    
+    # Save carrier data to database
+    if safer_lookups:
+        _ = save_carrier_data_bulk(db, safer_lookups, 
+                                   user_id=user_id,
+                                   org_id=org_id)
+    
+    # Save OCR results to database
+    ocr_results_saved = save_ocr_results_bulk(db, ocr_records)
+    
+    logger.info(f"✅ Processed {len(ocr_results_saved)} manual USDOT entries, {len(safer_lookups)} carrier records saved.")
+    
+    # Collect all OCR result IDs
+    ocr_result_ids = [
+        {"id": result.id, "dot_reading": result.dot_reading}
+        for result in ocr_results_saved
+    ]
+    
+    return JSONResponse(
+        content={
+            "message": "Manual USDOT processing complete",
+            "result_ids": ocr_result_ids,
+            "valid_usdots": valid_usdots,
+            "invalid_usdots": invalid_usdots,
+            "successful_lookups": len(safer_lookups)
         },
         status_code=200
     )
