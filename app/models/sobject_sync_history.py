@@ -24,6 +24,3 @@ class CRMObjectSyncHistory(SQLModel, table=True):
     crm_object_id: Optional[str] = None  # CRM object ID if successful
     detail: Optional[str] = None  # Error messages or success details
 
-
-# Keep old class name for backward compatibility during migration
-SObjectSyncHistory = CRMObjectSyncHistory

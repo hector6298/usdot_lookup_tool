@@ -62,3 +62,15 @@ class CarrierWithEngagementResponse(SQLModel):
     sf_sync_status: Optional[str] = None  # "SUCCESS", "FAILED", or None
     sf_sobject_id: Optional[str] = None  # Salesforce ID if successful
     sf_sync_timestamp: Optional[str] = None  # When last sync was attempted
+
+class CarrierWithSyncStatusResponse(SQLModel):
+    usdot: str
+    legal_name: str
+    phone: Optional[str]
+    mailing_address: str
+    created_at: str
+    carrier_interested: bool  # Keep for backward compatibility
+    # CRM sync status fields
+    sobject_sync_status: Optional[str] = None  # "SUCCESS", "FAILED", "NOT SYNCHED"
+    sobject_id: Optional[str] = None  # CRM object ID if successful
+    subject_synched_at: Optional[str] = None  # When last sync was attempted

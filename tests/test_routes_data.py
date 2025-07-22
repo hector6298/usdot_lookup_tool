@@ -11,7 +11,6 @@ from app.routes.data import (
     fetch_carriers,
     fetch_carrier,
     fetch_lookup_history,
-    update_carrier_interests,
     export_carriers,
     export_lookup_history
 )
@@ -36,9 +35,9 @@ class TestFetchCarriers:
             carrier.carrier_followed_up = False
             carrier.carrier_follow_up_by_date = None
         
-        with patch('app.routes.data.get_engagement_data') as mock_get_engagement, \
-             patch('app.routes.data.get_sync_status_for_usdots') as mock_get_sync_status:
-            mock_get_engagement.return_value = mock_carriers
+        with patch('app.routes.data.get_crm_sync_data') as mock_get_crm_data, \
+             patch('app.routes.data.get_crm_sync_status_for_usdots') as mock_get_sync_status:
+            mock_get_crm_data.return_value = mock_carriers
             mock_get_sync_status.return_value = {}  # No sync status records
             
             # Act
@@ -53,7 +52,7 @@ class TestFetchCarriers:
             
             # Assert
             assert len(result) == 3
-            mock_get_engagement.assert_called_once_with(
+            mock_get_crm_data.assert_called_once_with(
                 mock_db_session,
                 org_id='test_org_456',
                 offset=0,
@@ -77,9 +76,9 @@ class TestFetchCarriers:
         mock_carriers[0].carrier_followed_up = False
         mock_carriers[0].carrier_follow_up_by_date = None
         
-        with patch('app.routes.data.get_engagement_data') as mock_get_engagement, \
-             patch('app.routes.data.get_sync_status_for_usdots') as mock_get_sync_status:
-            mock_get_engagement.return_value = mock_carriers
+        with patch('app.routes.data.get_crm_sync_data') as mock_get_crm_data, \
+             patch('app.routes.data.get_crm_sync_status_for_usdots') as mock_get_sync_status:
+            mock_get_crm_data.return_value = mock_carriers
             mock_get_sync_status.return_value = {}  # No sync status records
             
             # Act
@@ -96,7 +95,7 @@ class TestFetchCarriers:
             assert len(result) == 1
             assert result[0].carrier_interested is True
             assert result[0].carrier_contacted is True
-            mock_get_engagement.assert_called_once_with(
+            mock_get_crm_data.assert_called_once_with(
                 mock_db_session,
                 org_id='test_org_456',
                 offset=5,
@@ -109,8 +108,8 @@ class TestFetchCarriers:
     async def test_fetch_carriers_empty_result(self, mock_request, mock_db_session):
         """Test fetching carriers when no results found."""
         # Arrange
-        with patch('app.routes.data.get_engagement_data') as mock_get_engagement:
-            mock_get_engagement.return_value = []
+        with patch('app.routes.data.get_crm_sync_data') as mock_get_crm_data:
+            mock_get_crm_data.return_value = []
             
             # Act
             result = await fetch_carriers(mock_request, db=mock_db_session)
@@ -219,84 +218,6 @@ class TestFetchLookupHistory:
             assert result[0].mailing_address == ""
 
 
-class TestUpdateCarrierInterests:
-    """Test update_carrier_interests route."""
-    
-    @pytest.mark.asyncio
-    async def test_update_carrier_interests_success(self, mock_request, mock_db_session):
-        """Test successfully updating carrier interests."""
-        # Arrange
-        mock_request.json = AsyncMock(return_value={
-            "changes": [
-                {
-                    "usdot": "123456",
-                    "field": "carrier_interested",
-                    "value": True
-                },
-                {
-                    "usdot": "789012",
-                    "field": "carrier_contacted",
-                    "value": True
-                }
-            ]
-        })
-        
-        with patch('app.routes.data.update_carrier_engagement') as mock_update:
-            mock_update.return_value = Mock()  # Successful update
-            
-            # Act
-            result = await update_carrier_interests(mock_request, mock_db_session)
-            
-            # Assert
-            assert isinstance(result, JSONResponse)
-            assert result.status_code == 200
-            assert mock_update.call_count == 2
-    
-    @pytest.mark.asyncio
-    async def test_update_carrier_interests_missing_data(self, mock_request, mock_db_session):
-        """Test updating with missing required data."""
-        # Arrange
-        mock_request.json = AsyncMock(return_value={
-            "changes": [
-                {
-                    "usdot": "123456",
-                    "field": "carrier_interested"
-                    # Missing 'value' field
-                }
-            ]
-        })
-        
-        # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
-            await update_carrier_interests(mock_request, mock_db_session)
-        
-        # The actual behavior is that this gets caught and converted to 500
-        assert exc_info.value.status_code == 500
-    
-    @pytest.mark.asyncio
-    async def test_update_carrier_interests_database_error(self, mock_request, mock_db_session):
-        """Test handling database errors during update."""
-        # Arrange
-        mock_request.json = AsyncMock(return_value={
-            "changes": [
-                {
-                    "usdot": "123456",
-                    "field": "carrier_interested",
-                    "value": True
-                }
-            ]
-        })
-        
-        with patch('app.routes.data.update_carrier_engagement') as mock_update:
-            mock_update.side_effect = Exception("Database error")
-            
-            # Act & Assert
-            with pytest.raises(HTTPException) as exc_info:
-                await update_carrier_interests(mock_request, mock_db_session)
-            
-            assert exc_info.value.status_code == 500
-
-
 class TestExportCarriers:
     """Test export_carriers route."""
     
@@ -316,8 +237,8 @@ class TestExportCarriers:
             carrier.carrier_follow_up_by_date = None
             carrier.carrier_interested = False
         
-        with patch('app.routes.data.get_engagement_data') as mock_get_engagement:
-            mock_get_engagement.return_value = mock_carriers
+        with patch('app.routes.data.get_crm_sync_data') as mock_get_crm_data:
+            mock_get_crm_data.return_value = mock_carriers
             
             # Act
             result = await export_carriers(mock_request, mock_db_session)
@@ -325,7 +246,7 @@ class TestExportCarriers:
             # Assert
             assert result.media_type == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             assert "carrier_data.xlsx" in result.headers["Content-Disposition"]
-            mock_get_engagement.assert_called_once_with(mock_db_session, org_id='test_org_456')
+            mock_get_crm_data.assert_called_once_with(mock_db_session, org_id='test_org_456')
 
 
 class TestExportLookupHistory:

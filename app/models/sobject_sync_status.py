@@ -29,6 +29,3 @@ class CRMSyncStatus(SQLModel, table=True):
     # Relationship to CarrierData
     carrier_data: Optional["CarrierData"] = Relationship(back_populates="sync_status")
 
-
-# Keep old class name for backward compatibility during migration
-SObjectSyncStatus = CRMSyncStatus

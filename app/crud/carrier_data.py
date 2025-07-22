@@ -157,7 +157,7 @@ def generate_crm_sync_records(db: Session,
                     usdot=usdot,
                     org_id=org_id,
                     user_id=user_id,
-                    sobject_sync_status="PENDING"  # Default status for new carriers
+                    sobject_sync_status="NOT SYNCHED"  # Default status for new carriers
                 )
                 sync_records.append(sync_record)
 

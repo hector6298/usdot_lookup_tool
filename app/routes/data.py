@@ -14,7 +14,7 @@ from app.crud.sobject_sync_status import get_crm_sync_status_for_usdots
 from app.routes.auth import verify_login, verify_login_json_response
 from app.models.ocr_results import OCRResultResponse
 from app.models.carrier_data import CarrierData
-from app.models.engagement import CarrierWithEngagementResponse
+from app.models.engagement import CarrierWithSyncStatusResponse
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -23,7 +23,7 @@ templates = Jinja2Templates(directory="app/templates")
 logger = logging.getLogger(__name__)
 
 @router.get("/data/fetch/carriers",
-            response_model=list[CarrierWithEngagementResponse],
+            response_model=list[CarrierWithSyncStatusResponse],
             dependencies=[Depends(verify_login_json_response)])
 async def fetch_carriers(request: Request,
                     offset: int = 0,
@@ -51,20 +51,17 @@ async def fetch_carriers(request: Request,
     sync_status_dict = get_crm_sync_status_for_usdots(db, usdots, org_id) if usdots else {}
     
     results = [
-        CarrierWithEngagementResponse(
+        CarrierWithSyncStatusResponse(
             usdot=sync_record.usdot,
             legal_name=sync_record.carrier_data.legal_name if sync_record.carrier_data else "",
             phone=sync_record.carrier_data.phone if sync_record.carrier_data else "",
             mailing_address=sync_record.carrier_data.mailing_address if sync_record.carrier_data else "",
             created_at=sync_record.created_at.strftime("%Y-%m-%d %H:%M:%S"),
-            carrier_interested=False,  # Not applicable in CRM sync system
-            carrier_contacted=False,   # Not applicable in CRM sync system
-            carrier_followed_up=False,  # Not applicable in CRM sync system
-            carrier_follow_up_by_date=None,  # Not applicable in CRM sync system
-            # Add sync status information
-            sf_sync_status=sync_record.sobject_sync_status,
-            sf_sobject_id=sync_record.sobject_id,
-            sf_sync_timestamp=sync_record.updated_at.strftime("%Y-%m-%d %H:%M:%S") if sync_record.updated_at else None
+            carrier_interested=False,  # Keep for backward compatibility
+            # CRM sync status information
+            sobject_sync_status=sync_record.sobject_sync_status,
+            sobject_id=sync_record.sobject_id,
+            subject_synched_at=sync_record.subject_synched_at.strftime("%Y-%m-%d %H:%M:%S") if sync_record.subject_synched_at else None
         )
         for sync_record in sync_records
     ]
@@ -131,23 +128,6 @@ async def fetch_lookup_history(request: Request,
     ]
     logger.info(f"🔍 Lookup history data fetched successfully: {results}")    
     return results
-
-@router.post("/data/update/carrier_interests",
-             dependencies=[Depends(verify_login_json_response)])
-async def update_carrier_interests(request: Request,
-                                    db: Session = Depends(get_db)):
-    """Update carrier interests based on user input - deprecated in CRM sync system."""
-
-    form_data = await request.json()
-    logger.warning("🔄 Carrier interests update is deprecated in CRM sync system."
-                f"Changes received: {form_data}")
-    
-    # For backward compatibility, return success but don't actually update anything
-    # since engagement fields don't exist in CRM sync system
-    return JSONResponse(status_code=200, 
-                        content={"status": "ok", 
-                                "message": "Carrier interests update is deprecated in CRM sync system"})
-    
 
 @router.get("/data/export/carriers", dependencies=[Depends(verify_login)])
 async def export_carriers(request: Request, db: Session = Depends(get_db)):

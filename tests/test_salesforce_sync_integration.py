@@ -8,8 +8,8 @@ import json
 from app.main import app
 from app.database import get_db
 from app.models.carrier_data import CarrierData
-from app.models.sobject_sync_history import SObjectSyncHistory
-from app.models.sobject_sync_status import SObjectSyncStatus
+from app.models.sobject_sync_history import CRMObjectSyncHistory
+from app.models.sobject_sync_status import CRMSyncStatus
 from app.crud.sobject_sync_history import create_sync_history_record
 from app.crud.sobject_sync_status import upsert_sync_status
 
@@ -91,10 +91,10 @@ class TestSalesforceEndpointIntegration:
                     db=db_session,
                     usdot=test_carrier.usdot,
                     sync_status="SUCCESS",
-                    sobject_type="account",
+                    crm_object_type="account",
                     user_id=user_id,
                     org_id=org_id,
-                    sobject_id=salesforce_id,
+                    crm_object_id=salesforce_id,
                     detail=f"Successfully created Account with ID: {salesforce_id}",
                     sync_timestamp=sync_timestamp
                 )
@@ -106,27 +106,27 @@ class TestSalesforceEndpointIntegration:
                     org_id=org_id,
                     user_id=user_id,
                     sync_status="SUCCESS",
-                    sobject_id=salesforce_id
+                    crm_object_id=salesforce_id
                 )
         
         # Verify history record was created
-        history_records = db_session.query(SObjectSyncHistory).filter(
-            SObjectSyncHistory.usdot == "12345"
+        history_records = db_session.query(CRMObjectSyncHistory).filter(
+            CRMObjectSyncHistory.usdot == "12345"
         ).all()
         assert len(history_records) == 1
         assert history_records[0].sync_status == "SUCCESS"
-        assert history_records[0].sobject_id == "001D000000K1YFjIAN"
+        assert history_records[0].crm_object_id == "001D000000K1YFjIAN"
         assert history_records[0].user_id == user_id
         assert history_records[0].org_id == org_id
         
         # Verify status record was created
-        status_records = db_session.query(SObjectSyncStatus).filter(
-            SObjectSyncStatus.usdot == "12345",
-            SObjectSyncStatus.org_id == org_id
+        status_records = db_session.query(CRMSyncStatus).filter(
+            CRMSyncStatus.usdot == "12345",
+            CRMSyncStatus.org_id == org_id
         ).all()
         assert len(status_records) == 1
-        assert status_records[0].sync_status == "SUCCESS"
-        assert status_records[0].sobject_id == "001D000000K1YFjIAN"
+        assert status_records[0].sobject_sync_status == "SUCCESS"
+        assert status_records[0].crm_object_id == "001D000000K1YFjIAN"
     
     def test_salesforce_sync_failure_logging(self, db_session):
         """Test that failed Salesforce sync is properly logged."""
@@ -178,7 +178,7 @@ class TestSalesforceEndpointIntegration:
                     db=db_session,
                     usdot=test_carrier.usdot,
                     sync_status="FAILED",
-                    sobject_type="account",
+                    crm_object_type="account",
                     user_id=user_id,
                     org_id=org_id,
                     detail=detail,
@@ -195,22 +195,22 @@ class TestSalesforceEndpointIntegration:
                 )
         
         # Verify history record was created
-        history_records = db_session.query(SObjectSyncHistory).filter(
-            SObjectSyncHistory.usdot == "12346"
+        history_records = db_session.query(CRMObjectSyncHistory).filter(
+            CRMObjectSyncHistory.usdot == "12346"
         ).all()
         assert len(history_records) == 1
         assert history_records[0].sync_status == "FAILED"
-        assert history_records[0].sobject_id is None
+        assert history_records[0].crm_object_id is None
         assert "INVALID_EMAIL_ADDRESS" in history_records[0].detail
         
         # Verify status record was created
-        status_records = db_session.query(SObjectSyncStatus).filter(
-            SObjectSyncStatus.usdot == "12346",
-            SObjectSyncStatus.org_id == org_id
+        status_records = db_session.query(CRMSyncStatus).filter(
+            CRMSyncStatus.usdot == "12346",
+            CRMSyncStatus.org_id == org_id
         ).all()
         assert len(status_records) == 1
-        assert status_records[0].sync_status == "FAILED"
-        assert status_records[0].sobject_id is None
+        assert status_records[0].sobject_sync_status == "FAILED"
+        assert status_records[0].crm_object_id is None
     
     def test_mixed_success_failure_logging(self, db_session):
         """Test logging when some carriers succeed and others fail."""
@@ -266,7 +266,7 @@ class TestSalesforceEndpointIntegration:
                     db=db_session,
                     usdot=carrier.usdot,
                     sync_status="FAILED",
-                    sobject_type="account",
+                    crm_object_type="account",
                     user_id=user_id,
                     org_id=org_id,
                     detail=detail,
@@ -286,10 +286,10 @@ class TestSalesforceEndpointIntegration:
                     db=db_session,
                     usdot=carrier.usdot,
                     sync_status="SUCCESS",
-                    sobject_type="account",
+                    crm_object_type="account",
                     user_id=user_id,
                     org_id=org_id,
-                    sobject_id=salesforce_id,
+                    crm_object_id=salesforce_id,
                     detail=f"Successfully created Account with ID: {salesforce_id}",
                     sync_timestamp=sync_timestamp
                 )
@@ -299,17 +299,17 @@ class TestSalesforceEndpointIntegration:
                     org_id=org_id,
                     user_id=user_id,
                     sync_status="SUCCESS",
-                    sobject_id=salesforce_id
+                    crm_object_id=salesforce_id
                 )
         
         # Verify both records were created correctly
-        all_history = db_session.query(SObjectSyncHistory).filter(
-            SObjectSyncHistory.usdot.in_(["12347", "12348"])
+        all_history = db_session.query(CRMObjectSyncHistory).filter(
+            CRMObjectSyncHistory.usdot.in_(["12347", "12348"])
         ).all()
         assert len(all_history) == 2
         
-        success_history = [h for h in all_history if h.sync_status == "SUCCESS"]
-        failed_history = [h for h in all_history if h.sync_status == "FAILED"]
+        success_history = [h for h in all_history if h.sobject_sync_status == "SUCCESS"]
+        failed_history = [h for h in all_history if h.sobject_sync_status == "FAILED"]
         
         assert len(success_history) == 1
         assert len(failed_history) == 1
@@ -317,15 +317,15 @@ class TestSalesforceEndpointIntegration:
         assert failed_history[0].usdot == "12348"
         
         # Verify status records
-        all_status = db_session.query(SObjectSyncStatus).filter(
-            SObjectSyncStatus.usdot.in_(["12347", "12348"])
+        all_status = db_session.query(CRMSyncStatus).filter(
+            CRMSyncStatus.usdot.in_(["12347", "12348"])
         ).all()
         assert len(all_status) == 2
         
-        success_status = [s for s in all_status if s.sync_status == "SUCCESS"]
-        failed_status = [s for s in all_status if s.sync_status == "FAILED"]
+        success_status = [s for s in all_status if s.sobject_sync_status == "SUCCESS"]
+        failed_status = [s for s in all_status if s.sobject_sync_status == "FAILED"]
         
         assert len(success_status) == 1
         assert len(failed_status) == 1
-        assert success_status[0].sobject_id == "001D000000K1YFkIAN"
-        assert failed_status[0].sobject_id is None
+        assert success_status[0].crm_object_id == "001D000000K1YFkIAN"
+        assert failed_status[0].crm_object_id is None
