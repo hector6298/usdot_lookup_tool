@@ -7,10 +7,10 @@ from fastapi.responses import StreamingResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from sqlmodel import Session
 from app.database import get_db
-from app.crud.engagement import get_engagement_data, update_carrier_engagement
+from app.crud.crm_sync_status import get_crm_sync_data
 from app.crud.carrier_data import get_carrier_data_by_dot
 from app.crud.ocr_results import get_ocr_results
-from app.crud.sobject_sync_status import get_sync_status_for_usdots
+from app.crud.sobject_sync_status import get_crm_sync_status_for_usdots
 from app.routes.auth import verify_login, verify_login_json_response
 from app.models.ocr_results import OCRResultResponse
 from app.models.carrier_data import CarrierData
@@ -39,36 +39,34 @@ async def fetch_carriers(request: Request,
                 if 'org_id' in request.session['userinfo'] else user_id)
     
     logger.info("🔍 Fetching carrier data...")
-    carriers = get_engagement_data(db, 
-                                       org_id=org_id,
-                                       offset=offset,
-                                       carrier_contacted=client_contacted,
-                                       carrier_interested=carrier_interested,
-                                       limit=limit)
+    sync_records = get_crm_sync_data(db, 
+                                     org_id=org_id,
+                                     offset=offset,
+                                     carrier_contacted=client_contacted,
+                                     carrier_interested=carrier_interested,
+                                     limit=limit)
     
     # Get sync status for all carriers in batch
-    usdots = [carrier.usdot for carrier in carriers]
-    sync_status_dict = get_sync_status_for_usdots(db, usdots, org_id) if usdots else {}
+    usdots = [sync_record.usdot for sync_record in sync_records]
+    sync_status_dict = get_crm_sync_status_for_usdots(db, usdots, org_id) if usdots else {}
     
     results = [
         CarrierWithEngagementResponse(
-            usdot=carrier.usdot,
-            legal_name=carrier.carrier_data.legal_name,
-            phone=carrier.carrier_data.phone,
-            mailing_address=carrier.carrier_data.mailing_address,
-            created_at=carrier.created_at.strftime("%Y-%m-%d %H:%M:%S"),
-            carrier_interested=carrier.carrier_interested,
-            carrier_contacted=carrier.carrier_contacted,
-            carrier_followed_up=carrier.carrier_followed_up,
-            carrier_follow_up_by_date=carrier.carrier_follow_up_by_date.strftime("%Y-%m-%d") 
-                if carrier.carrier_follow_up_by_date else None,
+            usdot=sync_record.usdot,
+            legal_name=sync_record.carrier_data.legal_name if sync_record.carrier_data else "",
+            phone=sync_record.carrier_data.phone if sync_record.carrier_data else "",
+            mailing_address=sync_record.carrier_data.mailing_address if sync_record.carrier_data else "",
+            created_at=sync_record.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+            carrier_interested=False,  # Not applicable in CRM sync system
+            carrier_contacted=False,   # Not applicable in CRM sync system
+            carrier_followed_up=False,  # Not applicable in CRM sync system
+            carrier_follow_up_by_date=None,  # Not applicable in CRM sync system
             # Add sync status information
-            sf_sync_status=sync_status_dict[carrier.usdot].sync_status if carrier.usdot in sync_status_dict else None,
-            sf_sobject_id=sync_status_dict[carrier.usdot].sobject_id if carrier.usdot in sync_status_dict else None,
-            sf_sync_timestamp=sync_status_dict[carrier.usdot].updated_at.strftime("%Y-%m-%d %H:%M:%S") 
-                if carrier.usdot in sync_status_dict and sync_status_dict[carrier.usdot].updated_at else None
+            sf_sync_status=sync_record.sobject_sync_status,
+            sf_sobject_id=sync_record.sobject_id,
+            sf_sync_timestamp=sync_record.updated_at.strftime("%Y-%m-%d %H:%M:%S") if sync_record.updated_at else None
         )
-        for carrier in carriers
+        for sync_record in sync_records
     ]
 
     logger.info(f"🔍 Carrier data fetched successfully: {results}")
@@ -138,28 +136,17 @@ async def fetch_lookup_history(request: Request,
              dependencies=[Depends(verify_login_json_response)])
 async def update_carrier_interests(request: Request,
                                     db: Session = Depends(get_db)):
-    """Update carrier interests based on user input."""
+    """Update carrier interests based on user input - deprecated in CRM sync system."""
 
     form_data = await request.json()
-    logger.info("🔄 Updating carrier interests..."
+    logger.warning("🔄 Carrier interests update is deprecated in CRM sync system."
                 f"Changes received: {form_data}")
     
-    try:
-        for change_item in form_data.get("changes"):
-            dot_number = change_item.get("usdot")
-            field = change_item.get("field")
-            value = change_item.get("value")
-
-            if not dot_number or not field or value is None:
-                raise HTTPException(status_code=400, detail="Invalid input data")
-
-            update_carrier_engagement(db, change_item)
-            
-        return JSONResponse(status_code=200, 
-                            content={"status": "ok", "message": "Changes updated successfully"})
-    except Exception as e:
-        logger.error(f"Error updating carrier interests: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+    # For backward compatibility, return success but don't actually update anything
+    # since engagement fields don't exist in CRM sync system
+    return JSONResponse(status_code=200, 
+                        content={"status": "ok", 
+                                "message": "Carrier interests update is deprecated in CRM sync system"})
     
 
 @router.get("/data/export/carriers", dependencies=[Depends(verify_login)])
@@ -171,7 +158,7 @@ async def export_carriers(request: Request, db: Session = Depends(get_db)):
                 if 'org_id' in request.session['userinfo'] else user_id)
     logger.info(f"🔍 Fetching carrier data for org ID: {org_id} to export (Excel).")
 
-    results = get_engagement_data(db, org_id=org_id)
+    results = get_crm_sync_data(db, org_id=org_id)
 
     wb = Workbook()
     ws = wb.active
@@ -180,21 +167,20 @@ async def export_carriers(request: Request, db: Session = Depends(get_db)):
     # Write header
     ws.append([
         "DOT Number", "Legal Name", "Phone Number", "Mailing Address", "Created At",
-        "Client Contacted?", "Carrier Followed Up?", "Carrier Follow Up by Date", "Carrier Interested"
+        "CRM Sync Status", "CRM Object ID", "Last Synced At"
     ])
 
     # Write data rows
     for result in results:
         ws.append([
             result.usdot,
-            result.carrier_data.legal_name,
-            result.carrier_data.phone,
-            result.carrier_data.mailing_address,
+            result.carrier_data.legal_name if result.carrier_data else "",
+            result.carrier_data.phone if result.carrier_data else "",
+            result.carrier_data.mailing_address if result.carrier_data else "",
             result.created_at.strftime("%Y-%m-%d %H:%M:%S"),
-            result.carrier_contacted,
-            result.carrier_followed_up,
-            result.carrier_follow_up_by_date.strftime("%Y-%m-%d") if result.carrier_follow_up_by_date else None,
-            result.carrier_interested,
+            result.sobject_sync_status,
+            result.sobject_id,
+            result.subject_synched_at.strftime("%Y-%m-%d %H:%M:%S") if result.subject_synched_at else None,
         ])
 
     # Save to in-memory bytes buffer

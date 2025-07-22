@@ -1,9 +1,9 @@
 import logging
-from sqlmodel import Session
+from sqlmodel import Session, select
 from app.models.carrier_data import CarrierData, CarrierDataCreate
-from app.crud.ocr_results import get_ocr_results
-from app.crud.engagement import generate_engagement_records
+from app.crud.sobject_sync_status import upsert_crm_sync_status
 from fastapi import HTTPException
+from datetime import datetime, timezone
 
 # Set up a module-level logger
 logger = logging.getLogger(__name__)
@@ -13,26 +13,36 @@ def get_carrier_data(db: Session,
                      offset: int = None, 
                      limit: int = None
                      ) -> dict:
-    """Retrieves carrier data from the database."""
+    """Retrieves carrier data from the database using CRM sync status."""
 
     if org_id:
         logger.info(f"🔍 Filtering carrier data by org ID: {org_id}")
-        user_ocr_results = get_ocr_results(db, 
-                                           org_id=org_id,
-                                           valid_dot_only=True)
-        dot_numbers = [result.dot_reading for result in user_ocr_results]
-        carriers = db.query(CarrierData).filter(CarrierData.usdot.in_(dot_numbers))
+        # Get USDOTs from CRM sync status instead of OCR results
+        from app.models.sobject_sync_status import CRMSyncStatus
+        
+        query = select(CRMSyncStatus).where(CRMSyncStatus.org_id == org_id)
+        if offset is not None and limit is not None:
+            logger.info(f"🔍 Applying offset: offset={offset}, limit={limit}")
+            query = query.offset(offset).limit(limit)
+        
+        sync_records = db.exec(query).all()
+        dot_numbers = [record.usdot for record in sync_records]
+        
+        if dot_numbers:
+            carriers = db.exec(
+                select(CarrierData).where(CarrierData.usdot.in_(dot_numbers))
+            ).all()
+        else:
+            carriers = []
     else:
         logger.info("🔍 Fetching all carrier data without user filtering.")
-        carriers = db.query(CarrierData)
+        query = select(CarrierData)
+        if offset is not None and limit is not None:
+            logger.info(f"🔍 Applying offset: offset={offset}, limit={limit}")
+            query = query.offset(offset).limit(limit)
+        
+        carriers = db.exec(query).all()
 
-    if offset is not None and limit is not None:
-        logger.info(f"🔍 Applying offset: offset={offset}, limit={limit}")
-        carriers = carriers.offset(offset).limit(limit)
-    else:
-        logger.info("🔍 Offset is disabled.")
-
-    carriers = carriers.all()
     logger.info(f"✅ Found {len(carriers)} carrier records.")
 
     return carriers
@@ -42,7 +52,9 @@ def get_carrier_data(db: Session,
 def get_carrier_data_by_dot(db: Session, dot_number: str) -> CarrierData:
     """Retrieves carrier data by DOT number."""
     logger.info(f"🔍 Searching for carrier with USDOT: {dot_number}")
-    carrier = db.query(CarrierData).filter(CarrierData.usdot == dot_number).first()
+    carrier = db.exec(
+        select(CarrierData).where(CarrierData.usdot == dot_number)
+    ).first()
 
     if carrier:
         logger.info(f"✅ Carrier found: {carrier.legal_name}")
@@ -93,11 +105,13 @@ def generate_carrier_records(db: Session,
             carrier_record = CarrierData.model_validate(data)
 
             # Check if the carrier with the same USDOT number already exists
-            existing_carrier = db.query(CarrierData).filter(CarrierData.usdot == data.usdot).first()
+            existing_carrier = db.exec(
+                select(CarrierData).where(CarrierData.usdot == data.usdot)
+            ).first()
             
             if existing_carrier:
                 logger.info(f"🔍 Carrier with USDOT {data.usdot} exists. Updating record.")
-                for key, value in carrier_record.dict().items():
+                for key, value in carrier_record.model_dump().items():
                     setattr(existing_carrier, key, value)
                 carrier_records.append(existing_carrier)
             else:
@@ -110,31 +124,74 @@ def generate_carrier_records(db: Session,
     return carrier_records
 
 
+def generate_crm_sync_records(db: Session, 
+                              usdot_numbers: list[int], 
+                              user_id: str, 
+                              org_id: str) -> list:
+    """Generates CRM sync status records for the given USDOT numbers."""
+    logger.info("🔍 Generating CRM sync status records for carriers."
+                f"USDOT numbers: {usdot_numbers}, User ID: {user_id}, Org ID: {org_id}")
+    
+    from app.models.sobject_sync_status import CRMSyncStatus
+    sync_records = []
+    
+    for usdot in usdot_numbers:
+        try:
+            # Check if the CRM sync record already exists
+            existing_sync = db.exec(
+                select(CRMSyncStatus).where(
+                    CRMSyncStatus.usdot == usdot,
+                    CRMSyncStatus.org_id == org_id
+                )
+            ).first()
+            
+            if existing_sync:
+                logger.info(f"🔍 CRM sync record already exists for USDOT: {usdot} and ORG {org_id}. Updating.")
+                existing_sync.user_id = user_id
+                from datetime import datetime
+                existing_sync.updated_at = datetime.now(timezone.utc)
+                sync_records.append(existing_sync)
+            else:
+                # Create a new CRM sync record
+                sync_record = CRMSyncStatus(
+                    usdot=usdot,
+                    org_id=org_id,
+                    user_id=user_id,
+                    sobject_sync_status="PENDING"  # Default status for new carriers
+                )
+                sync_records.append(sync_record)
+
+        except Exception as e:
+            logger.error(f"❌ Error generating CRM sync record for USDOT {usdot}: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+        
+    return sync_records
+
+
 def save_carrier_data_bulk(db: Session, 
                            carrier_data: list[CarrierDataCreate],
                            user_id: str,
                            org_id: str) -> list[CarrierData]:
-    """Saves multiple carrier data records to the database, performing upserts."""
+    """Saves multiple carrier data records to the database, performing upserts with CRM sync status in single transaction."""
     usdot_numbers = [data.usdot for data in carrier_data if data.lookup_success_flag]
     carrier_records = generate_carrier_records(db, carrier_data)
-    engagement_records = generate_engagement_records(db,
-                                                    usdot_numbers,
-                                                    user_id=user_id,
-                                                    org_id=org_id)
-    if carrier_records and engagement_records and len(carrier_records) == len(engagement_records):
+    sync_records = generate_crm_sync_records(db, usdot_numbers, user_id=user_id, org_id=org_id)
+    
+    if carrier_records and sync_records and len(carrier_records) == len(sync_records):
         try:
-            logger.info(f"🔍 Saving {len(carrier_records)} carrier records to the database in bulk.")
+            logger.info(f"🔍 Saving {len(carrier_records)} carrier records and {len(sync_records)} CRM sync records to the database in bulk.")
+            
+            # Single transaction for both carrier data and CRM sync status
             db.add_all(carrier_records)
-            db.add_all(engagement_records)
+            db.add_all(sync_records)
             db.commit()
             
-            
             # Refresh all records to get the latest state
-            for carrier_record, engagement_record in zip(carrier_records, engagement_records):
+            for carrier_record, sync_record in zip(carrier_records, sync_records):
                 db.refresh(carrier_record)
-                db.refresh(engagement_record)
+                db.refresh(sync_record)
 
-            logger.info("✅ All carrier records saved successfully.")
+            logger.info("✅ All carrier records and CRM sync records saved successfully.")
             return carrier_records
         except Exception as e:
             logger.error(f"❌ Error saving carrier records in bulk: {e}")

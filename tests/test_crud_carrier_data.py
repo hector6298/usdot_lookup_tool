@@ -202,9 +202,9 @@ class TestGenerateCarrierRecords:
 class TestSaveCarrierDataBulk:
     """Test save_carrier_data_bulk function."""
     
-    @patch('app.crud.carrier_data.generate_engagement_records')
+    @patch('app.crud.carrier_data.generate_crm_sync_records')
     @patch('app.crud.carrier_data.generate_carrier_records')
-    def test_save_carrier_data_bulk_success(self, mock_gen_carriers, mock_gen_engagement, mock_db_session):
+    def test_save_carrier_data_bulk_success(self, mock_gen_carriers, mock_gen_sync, mock_db_session):
         """Test bulk saving carrier data successfully."""
         # Arrange
         carrier_data_list = [
@@ -215,10 +215,10 @@ class TestSaveCarrierDataBulk:
         org_id = "test_org"
         
         mock_carrier_records = [Mock(spec=CarrierData) for _ in range(2)]
-        mock_engagement_records = [Mock() for _ in range(2)]
+        mock_sync_records = [Mock() for _ in range(2)]
         
         mock_gen_carriers.return_value = mock_carrier_records
-        mock_gen_engagement.return_value = mock_engagement_records
+        mock_gen_sync.return_value = mock_sync_records
         
         # Act
         result = save_carrier_data_bulk(mock_db_session, carrier_data_list, user_id, org_id)
@@ -226,12 +226,12 @@ class TestSaveCarrierDataBulk:
         # Assert
         assert result == mock_carrier_records
         mock_db_session.add_all.assert_any_call(mock_carrier_records)
-        mock_db_session.add_all.assert_any_call(mock_engagement_records)
+        mock_db_session.add_all.assert_any_call(mock_sync_records)
         mock_db_session.commit.assert_called_once()
         
-    @patch('app.crud.carrier_data.generate_engagement_records')
+    @patch('app.crud.carrier_data.generate_crm_sync_records')
     @patch('app.crud.carrier_data.generate_carrier_records')
-    def test_save_carrier_data_bulk_no_records(self, mock_gen_carriers, mock_gen_engagement, mock_db_session):
+    def test_save_carrier_data_bulk_no_records(self, mock_gen_carriers, mock_gen_sync, mock_db_session):
         """Test bulk saving when no valid records to save."""
         # Arrange
         carrier_data_list = []
@@ -239,7 +239,7 @@ class TestSaveCarrierDataBulk:
         org_id = "test_org"
         
         mock_gen_carriers.return_value = []
-        mock_gen_engagement.return_value = []
+        mock_gen_sync.return_value = []
         
         # Act
         result = save_carrier_data_bulk(mock_db_session, carrier_data_list, user_id, org_id)
@@ -249,9 +249,9 @@ class TestSaveCarrierDataBulk:
         mock_db_session.add_all.assert_not_called()
         mock_db_session.commit.assert_not_called()
     
-    @patch('app.crud.carrier_data.generate_engagement_records')
+    @patch('app.crud.carrier_data.generate_crm_sync_records')
     @patch('app.crud.carrier_data.generate_carrier_records')
-    def test_save_carrier_data_bulk_database_error(self, mock_gen_carriers, mock_gen_engagement, mock_db_session):
+    def test_save_carrier_data_bulk_database_error(self, mock_gen_carriers, mock_gen_sync, mock_db_session):
         """Test handling database errors in bulk save."""
         # Arrange
         carrier_data_list = [
@@ -261,10 +261,10 @@ class TestSaveCarrierDataBulk:
         org_id = "test_org"
         
         mock_carrier_records = [Mock(spec=CarrierData)]
-        mock_engagement_records = [Mock()]
+        mock_sync_records = [Mock()]
         
         mock_gen_carriers.return_value = mock_carrier_records
-        mock_gen_engagement.return_value = mock_engagement_records
+        mock_gen_sync.return_value = mock_sync_records
         mock_db_session.commit.side_effect = Exception("Database error")
         
         # Act & Assert
