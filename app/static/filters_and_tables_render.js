@@ -1,5 +1,3 @@
-import { Engagement } from "./update_carrier_engagement.js";
-
 const Filters = {
     offset: 0,
     limit: 10,
@@ -80,10 +78,6 @@ const Filters = {
             tbody.insertAdjacentHTML("beforeend", row);
         });
 
-        // Reinitialize checkboxes for engagement tracking
-        if (tableType === "carriers") {
-            Engagement.reinitializeInputs();
-        }
     },
 
     // Handle filter form submission

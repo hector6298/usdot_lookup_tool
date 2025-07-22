@@ -2,7 +2,6 @@ import logging
 from sqlmodel import Session
 from app.models.carrier_data import CarrierData, CarrierDataCreate
 from app.crud.ocr_results import get_ocr_results
-from app.crud.engagement import generate_engagement_records
 from fastapi import HTTPException
 
 # Set up a module-level logger
@@ -115,24 +114,18 @@ def save_carrier_data_bulk(db: Session,
                            user_id: str,
                            org_id: str) -> list[CarrierData]:
     """Saves multiple carrier data records to the database, performing upserts."""
-    usdot_numbers = [data.usdot for data in carrier_data if data.lookup_success_flag]
     carrier_records = generate_carrier_records(db, carrier_data)
-    engagement_records = generate_engagement_records(db,
-                                                    usdot_numbers,
-                                                    user_id=user_id,
-                                                    org_id=org_id)
-    if carrier_records and engagement_records and len(carrier_records) == len(engagement_records):
+
+    if carrier_records:
         try:
             logger.info(f"🔍 Saving {len(carrier_records)} carrier records to the database in bulk.")
             db.add_all(carrier_records)
-            db.add_all(engagement_records)
             db.commit()
             
             
             # Refresh all records to get the latest state
-            for carrier_record, engagement_record in zip(carrier_records, engagement_records):
+            for carrier_record in carrier_records:
                 db.refresh(carrier_record)
-                db.refresh(engagement_record)
 
             logger.info("✅ All carrier records saved successfully.")
             return carrier_records

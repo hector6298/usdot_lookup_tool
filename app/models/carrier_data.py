@@ -6,8 +6,19 @@ from sqlalchemy import Column, BigInteger
 
 if TYPE_CHECKING:
     from app.models.ocr_results import OCRResult
-    from app.models.engagement import CarrierEngagementStatus
     from app.models.sobject_sync_status import SObjectSyncStatus
+
+class CarrierWithSyncStatusResponse(SQLModel):
+    usdot: str
+    legal_name: str
+    phone: Optional[str]
+    mailing_address: str
+    created_at: str
+    # Salesforce sync status fields
+    sf_sync_status: Optional[str] = None  # "SUCCESS", "FAILED", or None
+    sf_sobject_id: Optional[str] = None  # Salesforce ID if successful
+    sf_sync_timestamp: Optional[str] = None  # When last sync was attempted
+
 
 class CarrierDataCreate(SQLModel):
     model_config = ConfigDict(
@@ -237,5 +248,4 @@ class CarrierData(SQLModel, table=True):
 
     # Relationship attributes
     ocr_results: List["OCRResult"] = Relationship(back_populates="carrier_data")
-    carrier_engagement_status: Optional["CarrierEngagementStatus"] = Relationship(back_populates="carrier_data")
     sync_status: List["SObjectSyncStatus"] = Relationship(back_populates="carrier_data", cascade_delete=True)
