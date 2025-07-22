@@ -4,8 +4,8 @@ from .engagement import CarrierEngagementStatus, CarrierChangeItem, CarrierChang
 from .oauth import OAuthToken
 from .ocr_results import OCRResult, OCRResultCreate, OCRResultResponse
 from .user_org_membership import UserOrgMembership, AppUser, AppOrg
-from .sobject_sync_history import SObjectSyncHistory
-from .sobject_sync_status import SObjectSyncStatus
+from .sobject_sync_history import CRMObjectSyncHistory, SObjectSyncHistory
+from .sobject_sync_status import CRMSyncStatus, SObjectSyncStatus
 
 __all__ = [
     "CarrierData",
@@ -21,6 +21,8 @@ __all__ = [
     "UserOrgMembership",
     "AppUser",
     "AppOrg",
-    "SObjectSyncHistory",
-    "SObjectSyncStatus",
+    "CRMObjectSyncHistory",
+    "SObjectSyncHistory",  # Keep for backward compatibility
+    "CRMSyncStatus", 
+    "SObjectSyncStatus",  # Keep for backward compatibility
 ]

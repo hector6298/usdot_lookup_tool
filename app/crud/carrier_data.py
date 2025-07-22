@@ -1,8 +1,7 @@
 import logging
-from sqlmodel import Session
+from sqlmodel import Session, select
 from app.models.carrier_data import CarrierData, CarrierDataCreate
-from app.crud.ocr_results import get_ocr_results
-from app.crud.engagement import generate_engagement_records
+from app.crud.sobject_sync_status import upsert_carrier_org_status, get_usdots_by_org
 from fastapi import HTTPException
 
 # Set up a module-level logger
@@ -17,10 +16,8 @@ def get_carrier_data(db: Session,
 
     if org_id:
         logger.info(f"🔍 Filtering carrier data by org ID: {org_id}")
-        user_ocr_results = get_ocr_results(db, 
-                                           org_id=org_id,
-                                           valid_dot_only=True)
-        dot_numbers = [result.dot_reading for result in user_ocr_results]
+        # Use CRMSyncStatus to get DOT numbers for this org instead of OCR results
+        dot_numbers = get_usdots_by_org(db, org_id)
         carriers = db.query(CarrierData).filter(CarrierData.usdot.in_(dot_numbers))
     else:
         logger.info("🔍 Fetching all carrier data without user filtering.")
@@ -110,36 +107,56 @@ def generate_carrier_records(db: Session,
     return carrier_records
 
 
+def generate_crm_sync_status_records(db: Session,
+                                   usdot_numbers: list[str],
+                                   user_id: str,
+                                   org_id: str) -> list:
+    """Generates CRM sync status records for the given USDOT numbers."""
+    logger.info("🔍 Generating CRM sync status records for carriers.")
+    sync_status_records = []
+    
+    for usdot in usdot_numbers:
+        try:
+            # Upsert CRM sync status record - this replaces engagement record functionality
+            sync_record = upsert_carrier_org_status(db, usdot, org_id, user_id)
+            sync_status_records.append(sync_record)
+        except Exception as e:
+            logger.error(f"❌ Error generating CRM sync status record for USDOT {usdot}: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    return sync_status_records
+
+
 def save_carrier_data_bulk(db: Session, 
                            carrier_data: list[CarrierDataCreate],
                            user_id: str,
                            org_id: str) -> list[CarrierData]:
     """Saves multiple carrier data records to the database, performing upserts."""
     usdot_numbers = [data.usdot for data in carrier_data if data.lookup_success_flag]
-    carrier_records = generate_carrier_records(db, carrier_data)
-    engagement_records = generate_engagement_records(db,
-                                                    usdot_numbers,
-                                                    user_id=user_id,
-                                                    org_id=org_id)
-    if carrier_records and engagement_records and len(carrier_records) == len(engagement_records):
-        try:
+    
+    try:
+        logger.info(f"🔍 Starting transaction for {len(carrier_data)} carrier records.")
+        
+        # Generate carrier records and CRM sync status records
+        carrier_records = generate_carrier_records(db, carrier_data)
+        sync_status_records = generate_crm_sync_status_records(db, usdot_numbers, user_id, org_id)
+        
+        if carrier_records and sync_status_records and len(carrier_records) == len(sync_status_records):
             logger.info(f"🔍 Saving {len(carrier_records)} carrier records to the database in bulk.")
             db.add_all(carrier_records)
-            db.add_all(engagement_records)
             db.commit()
             
-            
             # Refresh all records to get the latest state
-            for carrier_record, engagement_record in zip(carrier_records, engagement_records):
+            for carrier_record in carrier_records:
                 db.refresh(carrier_record)
-                db.refresh(engagement_record)
 
-            logger.info("✅ All carrier records saved successfully.")
+            logger.info("✅ All carrier records and CRM sync status records saved successfully.")
             return carrier_records
-        except Exception as e:
-            logger.error(f"❌ Error saving carrier records in bulk: {e}")
-            db.rollback()
-            raise HTTPException(status_code=500, detail=str(e))
-    else:
-        logger.warning("⚠ No valid carrier records to save.")
+        else:
+            logger.warning("⚠ No valid carrier records to save.")
+    except Exception as e:
+        logger.error(f"❌ Error saving carrier records in bulk: {e}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    
     return []

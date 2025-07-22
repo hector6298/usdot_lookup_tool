@@ -27,20 +27,20 @@ class TestCreateSyncHistoryRecord:
             db=db_session,
             usdot="12345",
             sync_status="SUCCESS",
-            sobject_type="account",
+            crm_object_type="account",
             user_id="user1",
             org_id="org1",
-            sobject_id="sf001",
+            crm_object_id="sf001",
             detail="Successfully created account"
         )
         
         assert result.id is not None
         assert result.usdot == "12345"
         assert result.sync_status == "SUCCESS"
-        assert result.sobject_type == "account"
+        assert result.crm_object_type == "account"
         assert result.user_id == "user1"
         assert result.org_id == "org1"
-        assert result.sobject_id == "sf001"
+        assert result.crm_object_id == "sf001"
         assert result.detail == "Successfully created account"
         assert isinstance(result.sync_timestamp, datetime)
     
@@ -50,7 +50,7 @@ class TestCreateSyncHistoryRecord:
             db=db_session,
             usdot="12346",
             sync_status="FAILED",
-            sobject_type="account",
+            crm_object_type="account",
             user_id="user1",
             org_id="org1",
             detail="INVALID_EMAIL_ADDRESS: Email: invalid email address: 123"
@@ -58,7 +58,7 @@ class TestCreateSyncHistoryRecord:
         
         assert result.usdot == "12346"
         assert result.sync_status == "FAILED"
-        assert result.sobject_id is None
+        assert result.crm_object_id is None
         assert "INVALID_EMAIL_ADDRESS" in result.detail
     
     def test_create_sync_history_record_custom_timestamp(self, db_session):
@@ -69,7 +69,7 @@ class TestCreateSyncHistoryRecord:
             db=db_session,
             usdot="12347",
             sync_status="SUCCESS",
-            sobject_type="account",
+            crm_object_type="account",
             user_id="user1",
             org_id="org1",
             sync_timestamp=custom_time
@@ -88,7 +88,7 @@ class TestGetSyncHistoryByUsdot:
             db=db_session,
             usdot="12345",
             sync_status="SUCCESS",
-            sobject_type="account",
+            crm_object_type="account",
             user_id="user1",
             org_id="org1"
         )
@@ -96,7 +96,7 @@ class TestGetSyncHistoryByUsdot:
             db=db_session,
             usdot="12345",
             sync_status="FAILED",
-            sobject_type="account",
+            crm_object_type="account",
             user_id="user1",
             org_id="org1"
         )
@@ -114,7 +114,7 @@ class TestGetSyncHistoryByUsdot:
             db=db_session,
             usdot="12345",
             sync_status="SUCCESS",
-            sobject_type="account",
+            crm_object_type="account",
             user_id="user1",
             org_id="org1"
         )
@@ -122,7 +122,7 @@ class TestGetSyncHistoryByUsdot:
             db=db_session,
             usdot="12345",
             sync_status="SUCCESS",
-            sobject_type="account",
+            crm_object_type="account",
             user_id="user2",
             org_id="org2"
         )
@@ -145,7 +145,7 @@ class TestGetSyncHistoryByUsdot:
                 db=db_session,
                 usdot="12345",
                 sync_status="SUCCESS",
-                sobject_type="account",
+                crm_object_type="account",
                 user_id="user1",
                 org_id="org1"
             )
@@ -163,7 +163,7 @@ class TestGetSyncHistoryByOrg:
             db=db_session,
             usdot="12345",
             sync_status="SUCCESS",
-            sobject_type="account",
+            crm_object_type="account",
             user_id="user1",
             org_id="org1"
         )
@@ -171,7 +171,7 @@ class TestGetSyncHistoryByOrg:
             db=db_session,
             usdot="12346",
             sync_status="FAILED",
-            sobject_type="account",
+            crm_object_type="account",
             user_id="user2",
             org_id="org1"
         )
@@ -187,7 +187,7 @@ class TestGetSyncHistoryByOrg:
             db=db_session,
             usdot="12345",
             sync_status="SUCCESS",
-            sobject_type="account",
+            crm_object_type="account",
             user_id="user1",
             org_id="org1"
         )
@@ -195,7 +195,7 @@ class TestGetSyncHistoryByOrg:
             db=db_session,
             usdot="12346",
             sync_status="SUCCESS",
-            sobject_type="account",
+            crm_object_type="account",
             user_id="user2",
             org_id="org1"
         )

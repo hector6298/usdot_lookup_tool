@@ -231,7 +231,7 @@ async def upload_carriers_to_salesforce(
                             db=db,
                             usdot=carrier.usdot,
                             sync_status="FAILED",
-                            sobject_type="account",
+                            crm_object_type="account",
                             user_id=user_id,
                             org_id=org_id,
                             detail=f"HTTP {resp.status_code}: {resp.text}"
@@ -281,7 +281,7 @@ async def upload_carriers_to_salesforce(
                             db=db,
                             usdot=carrier.usdot,
                             sync_status="FAILED",
-                            sobject_type="account",
+                            crm_object_type="account",
                             user_id=user_id,
                             org_id=org_id,
                             detail=detail,
@@ -307,10 +307,10 @@ async def upload_carriers_to_salesforce(
                             db=db,
                             usdot=carrier.usdot,
                             sync_status="SUCCESS",
-                            sobject_type="account",
+                            crm_object_type="account",
                             user_id=user_id,
                             org_id=org_id,
-                            sobject_id=salesforce_id,
+                            crm_object_id=salesforce_id,
                             detail=f"Successfully created Account with ID: {salesforce_id}",
                             sync_timestamp=sync_timestamp
                         )
@@ -320,7 +320,7 @@ async def upload_carriers_to_salesforce(
                             org_id=org_id,
                             user_id=user_id,
                             sync_status="SUCCESS",
-                            sobject_id=salesforce_id
+                            crm_object_id=salesforce_id
                         )
                         logger.info(f"Logged successful sync for USDOT {carrier.usdot} -> Salesforce ID: {salesforce_id}")
                     except Exception as e:
@@ -344,10 +344,10 @@ async def upload_carriers_to_salesforce(
                             db=db,
                             usdot=carrier.usdot,
                             sync_status="SUCCESS",
-                            sobject_type="account",
+                            crm_object_type="account",
                             user_id=user_id,
                             org_id=org_id,
-                            sobject_id=salesforce_id,
+                            crm_object_id=salesforce_id,
                             detail=f"Successfully created Account with ID: {salesforce_id}",
                             sync_timestamp=sync_timestamp
                         )
@@ -357,7 +357,7 @@ async def upload_carriers_to_salesforce(
                             org_id=org_id,
                             user_id=user_id,
                             sync_status="SUCCESS",
-                            sobject_id=salesforce_id
+                            crm_object_id=salesforce_id
                         )
                         logger.info(f"Logged successful sync for USDOT {carrier.usdot} -> Salesforce ID: {salesforce_id}")
                     except Exception as e:

@@ -37,7 +37,7 @@ class TestUpsertSyncStatus:
         assert result.usdot == "12345"
         assert result.org_id == "org1"
         assert result.user_id == "user1"
-        assert result.sync_status == "SUCCESS"
+        assert result.sobject_sync_status == "SUCCESS"
         assert result.sobject_id == "sf001"
         assert isinstance(result.created_at, datetime)
         assert isinstance(result.updated_at, datetime)
@@ -67,7 +67,7 @@ class TestUpsertSyncStatus:
         assert updated.usdot == "12345"
         assert updated.org_id == "org1"
         assert updated.user_id == "user2"  # Should be updated
-        assert updated.sync_status == "SUCCESS"  # Should be updated
+        assert updated.sobject_sync_status == "SUCCESS"  # Should be updated
         assert updated.sobject_id == "sf001"  # Should be updated
         assert updated.created_at == initial_created_at  # Should remain the same
         assert updated.updated_at > initial_created_at  # Should be newer
@@ -92,8 +92,8 @@ class TestUpsertSyncStatus:
         
         assert result1.org_id == "org1"
         assert result2.org_id == "org2"
-        assert result1.sync_status == "SUCCESS"
-        assert result2.sync_status == "FAILED"
+        assert result1.sobject_sync_status == "SUCCESS"
+        assert result2.sobject_sync_status == "FAILED"
 
 
 class TestGetSyncStatusByUsdot:
@@ -115,7 +115,7 @@ class TestGetSyncStatusByUsdot:
         assert result is not None
         assert result.usdot == "12345"
         assert result.org_id == "org1"
-        assert result.sync_status == "SUCCESS"
+        assert result.sobject_sync_status == "SUCCESS"
         assert result.sobject_id == "sf001"
     
     def test_get_sync_status_by_usdot_not_found(self, db_session):

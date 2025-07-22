@@ -63,7 +63,7 @@ async def fetch_carriers(request: Request,
             carrier_follow_up_by_date=carrier.carrier_follow_up_by_date.strftime("%Y-%m-%d") 
                 if carrier.carrier_follow_up_by_date else None,
             # Add sync status information
-            sf_sync_status=sync_status_dict[carrier.usdot].sync_status if carrier.usdot in sync_status_dict else None,
+            sf_sync_status=sync_status_dict[carrier.usdot].sobject_sync_status if carrier.usdot in sync_status_dict else None,
             sf_sobject_id=sync_status_dict[carrier.usdot].sobject_id if carrier.usdot in sync_status_dict else None,
             sf_sync_timestamp=sync_status_dict[carrier.usdot].updated_at.strftime("%Y-%m-%d %H:%M:%S") 
                 if carrier.usdot in sync_status_dict and sync_status_dict[carrier.usdot].updated_at else None

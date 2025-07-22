@@ -91,10 +91,10 @@ class TestSalesforceEndpointIntegration:
                     db=db_session,
                     usdot=test_carrier.usdot,
                     sync_status="SUCCESS",
-                    sobject_type="account",
+                    crm_object_type="account",
                     user_id=user_id,
                     org_id=org_id,
-                    sobject_id=salesforce_id,
+                    crm_object_id=salesforce_id,
                     detail=f"Successfully created Account with ID: {salesforce_id}",
                     sync_timestamp=sync_timestamp
                 )
@@ -115,7 +115,7 @@ class TestSalesforceEndpointIntegration:
         ).all()
         assert len(history_records) == 1
         assert history_records[0].sync_status == "SUCCESS"
-        assert history_records[0].sobject_id == "001D000000K1YFjIAN"
+        assert history_records[0].crm_object_id == "001D000000K1YFjIAN"
         assert history_records[0].user_id == user_id
         assert history_records[0].org_id == org_id
         
@@ -125,7 +125,7 @@ class TestSalesforceEndpointIntegration:
             SObjectSyncStatus.org_id == org_id
         ).all()
         assert len(status_records) == 1
-        assert status_records[0].sync_status == "SUCCESS"
+        assert status_records[0].sobject_sync_status == "SUCCESS"
         assert status_records[0].sobject_id == "001D000000K1YFjIAN"
     
     def test_salesforce_sync_failure_logging(self, db_session):
@@ -178,7 +178,7 @@ class TestSalesforceEndpointIntegration:
                     db=db_session,
                     usdot=test_carrier.usdot,
                     sync_status="FAILED",
-                    sobject_type="account",
+                    crm_object_type="account",
                     user_id=user_id,
                     org_id=org_id,
                     detail=detail,
@@ -200,7 +200,7 @@ class TestSalesforceEndpointIntegration:
         ).all()
         assert len(history_records) == 1
         assert history_records[0].sync_status == "FAILED"
-        assert history_records[0].sobject_id is None
+        assert history_records[0].crm_object_id is None
         assert "INVALID_EMAIL_ADDRESS" in history_records[0].detail
         
         # Verify status record was created
@@ -209,7 +209,7 @@ class TestSalesforceEndpointIntegration:
             SObjectSyncStatus.org_id == org_id
         ).all()
         assert len(status_records) == 1
-        assert status_records[0].sync_status == "FAILED"
+        assert status_records[0].sobject_sync_status == "FAILED"
         assert status_records[0].sobject_id is None
     
     def test_mixed_success_failure_logging(self, db_session):
@@ -266,7 +266,7 @@ class TestSalesforceEndpointIntegration:
                     db=db_session,
                     usdot=carrier.usdot,
                     sync_status="FAILED",
-                    sobject_type="account",
+                    crm_object_type="account",
                     user_id=user_id,
                     org_id=org_id,
                     detail=detail,
@@ -286,10 +286,10 @@ class TestSalesforceEndpointIntegration:
                     db=db_session,
                     usdot=carrier.usdot,
                     sync_status="SUCCESS",
-                    sobject_type="account",
+                    crm_object_type="account",
                     user_id=user_id,
                     org_id=org_id,
-                    sobject_id=salesforce_id,
+                    crm_object_id=salesforce_id,
                     detail=f"Successfully created Account with ID: {salesforce_id}",
                     sync_timestamp=sync_timestamp
                 )
@@ -322,8 +322,8 @@ class TestSalesforceEndpointIntegration:
         ).all()
         assert len(all_status) == 2
         
-        success_status = [s for s in all_status if s.sync_status == "SUCCESS"]
-        failed_status = [s for s in all_status if s.sync_status == "FAILED"]
+        success_status = [s for s in all_status if s.sobject_sync_status == "SUCCESS"]
+        failed_status = [s for s in all_status if s.sobject_sync_status == "FAILED"]
         
         assert len(success_status) == 1
         assert len(failed_status) == 1
