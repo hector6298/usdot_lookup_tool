@@ -10,7 +10,7 @@ from app.database import get_db
 from app.crud.crm_sync_status import get_crm_sync_data
 from app.crud.carrier_data import get_carrier_data_by_dot
 from app.crud.ocr_results import get_ocr_results
-from app.crud.sobject_sync_status import get_crm_sync_status_for_usdots
+from app.crud.crm_sync_status import get_crm_sync_status_for_usdots
 from app.routes.auth import verify_login, verify_login_json_response
 from app.models.ocr_results import OCRResultResponse
 from app.models.carrier_data import CarrierData

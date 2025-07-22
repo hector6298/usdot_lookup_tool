@@ -1,13 +1,13 @@
 import pytest
 from sqlmodel import Session, create_engine, SQLModel
-from app.crud.sobject_sync_status import (
+from app.crud.crm_sync_status import (
     upsert_crm_sync_status,
     get_crm_sync_status_by_usdot,
     get_crm_sync_status_by_org,
     get_crm_sync_status_for_usdots,
     delete_crm_sync_status
 )
-from app.models.sobject_sync_status import CRMSyncStatus
+from app.models.crm_sync_status import CRMSyncStatus
 from datetime import datetime
 
 

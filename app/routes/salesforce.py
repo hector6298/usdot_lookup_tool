@@ -3,8 +3,8 @@ from sqlmodel import Session, select
 from fastapi.responses import RedirectResponse, JSONResponse
 from app.database import get_db
 from app.crud.oauth import get_valid_salesforce_token, upsert_salesforce_token, delete_salesforce_token
-from app.crud.sobject_sync_history import create_sync_history_record
-from app.crud.sobject_sync_status import upsert_sync_status
+from app.crud.crm_sync_history import create_crm_sync_history_record
+from app.crud.crm_sync_status import upsert_sync_status
 from app.models.carrier_data import CarrierData
 from datetime import datetime
 import urllib.parse
@@ -227,7 +227,7 @@ async def upload_carriers_to_salesforce(
                 # Log failed sync attempts for all carriers
                 for carrier in carriers:
                     try:
-                        create_sync_history_record(
+                        create_crm_sync_history_record(
                             db=db,
                             usdot=carrier.usdot,
                             sync_status="FAILED",
@@ -277,7 +277,7 @@ async def upload_carriers_to_salesforce(
                     detail = "; ".join(error_details)
                     
                     try:
-                        create_sync_history_record(
+                        create_crm_sync_history_record(
                             db=db,
                             usdot=carrier.usdot,
                             sync_status="FAILED",
@@ -303,7 +303,7 @@ async def upload_carriers_to_salesforce(
                     salesforce_id = result["id"]
                     
                     try:
-                        create_sync_history_record(
+                        create_crm_sync_history_record(
                             db=db,
                             usdot=carrier.usdot,
                             sync_status="SUCCESS",
@@ -340,7 +340,7 @@ async def upload_carriers_to_salesforce(
                 
                 if salesforce_id:
                     try:
-                        create_sync_history_record(
+                        create_crm_sync_history_record(
                             db=db,
                             usdot=carrier.usdot,
                             sync_status="SUCCESS",

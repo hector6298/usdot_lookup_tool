@@ -5,9 +5,9 @@ Tests cover various combinations of users and organizations creating/updating ca
 import pytest
 from sqlmodel import Session, create_engine, SQLModel
 from app.crud.carrier_data import save_carrier_data_bulk
-from app.crud.sobject_sync_status import get_crm_sync_status_by_usdot, get_crm_sync_status_by_org
+from app.crud.crm_sync_status import get_crm_sync_status_by_usdot, get_crm_sync_status_by_org
 from app.models.carrier_data import CarrierDataCreate, CarrierData
-from app.models.sobject_sync_status import CRMSyncStatus
+from app.models.crm_sync_status import CRMSyncStatus
 from datetime import datetime
 
 

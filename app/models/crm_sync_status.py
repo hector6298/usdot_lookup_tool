@@ -28,4 +28,3 @@ class CRMSyncStatus(SQLModel, table=True):
     
     # Relationship to CarrierData
     carrier_data: Optional["CarrierData"] = Relationship(back_populates="sync_status")
-

@@ -1,5 +1,5 @@
 from sqlmodel import Session, select
-from app.models.sobject_sync_history import CRMObjectSyncHistory
+from app.models.crm_sync_history import CRMSyncHistory
 from datetime import datetime
 from typing import List, Optional
 import logging
@@ -7,7 +7,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def create_sync_history_record(
+def create_crm_sync_history_record(
     db: Session,
     usdot: str,
     sync_status: str,
@@ -17,10 +17,10 @@ def create_sync_history_record(
     crm_object_id: Optional[str] = None,
     detail: Optional[str] = None,
     sync_timestamp: Optional[datetime] = None
-) -> CRMObjectSyncHistory:
+) -> CRMSyncHistory:
     """Create a new sync history record."""
     try:
-        sync_record = CRMObjectSyncHistory(
+        sync_record = CRMSyncHistory(
             usdot=usdot,
             sync_status=sync_status,
             crm_object_type=crm_object_type,
@@ -44,20 +44,20 @@ def create_sync_history_record(
         raise
 
 
-def get_sync_history_by_usdot(
+def get_crm_sync_history_by_usdot(
     db: Session,
     usdot: str,
     org_id: Optional[str] = None,
     limit: int = 100
-) -> List[CRMObjectSyncHistory]:
+) -> List[CRMSyncHistory]:
     """Get sync history records for a specific USDOT number."""
     try:
-        query = select(CRMObjectSyncHistory).where(CRMObjectSyncHistory.usdot == usdot)
+        query = select(CRMSyncHistory).where(CRMSyncHistory.usdot == usdot)
         
         if org_id:
-            query = query.where(CRMObjectSyncHistory.org_id == org_id)
+            query = query.where(CRMSyncHistory.org_id == org_id)
             
-        query = query.order_by(CRMObjectSyncHistory.sync_timestamp.desc()).limit(limit)
+        query = query.order_by(CRMSyncHistory.sync_timestamp.desc()).limit(limit)
         
         result = db.exec(query).all()
         logger.info(f"Retrieved {len(result)} sync history records for USDOT {usdot}")
@@ -68,20 +68,20 @@ def get_sync_history_by_usdot(
         raise
 
 
-def get_sync_history_by_org(
+def get_crm_sync_history_by_org(
     db: Session,
     org_id: str,
     user_id: Optional[str] = None,
     limit: int = 1000
-) -> List[CRMObjectSyncHistory]:
+) -> List[CRMSyncHistory]:
     """Get sync history records for a specific org."""
     try:
-        query = select(CRMObjectSyncHistory).where(CRMObjectSyncHistory.org_id == org_id)
+        query = select(CRMSyncHistory).where(CRMSyncHistory.org_id == org_id)
         
         if user_id:
-            query = query.where(CRMObjectSyncHistory.user_id == user_id)
+            query = query.where(CRMSyncHistory.user_id == user_id)
             
-        query = query.order_by(CRMObjectSyncHistory.sync_timestamp.desc()).limit(limit)
+        query = query.order_by(CRMSyncHistory.sync_timestamp.desc()).limit(limit)
         
         result = db.exec(query).all()
         logger.info(f"Retrieved {len(result)} sync history records for org {org_id}")
@@ -90,3 +90,9 @@ def get_sync_history_by_org(
     except Exception as e:
         logger.error(f"Failed to get sync history for org {org_id}: {str(e)}")
         raise
+
+
+# Keep old function names for backward compatibility during migration
+create_sync_history_record = create_crm_sync_history_record
+get_sync_history_by_usdot = get_crm_sync_history_by_usdot
+get_sync_history_by_org = get_crm_sync_history_by_org

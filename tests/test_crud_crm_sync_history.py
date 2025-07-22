@@ -1,11 +1,11 @@
 import pytest
 from sqlmodel import Session, create_engine, SQLModel
-from app.crud.sobject_sync_history import (
-    create_sync_history_record,
-    get_sync_history_by_usdot,
-    get_sync_history_by_org
+from app.crud.crm_sync_history import (
+    create_crm_sync_history_record,
+    get_crm_sync_history_by_usdot,
+    get_crm_sync_history_by_org
 )
-from app.models.sobject_sync_history import CRMObjectSyncHistory
+from app.models.crm_sync_history import CRMSyncHistory
 from datetime import datetime, timedelta
 
 
@@ -21,9 +21,9 @@ def db_session():
 class TestCreateSyncHistoryRecord:
     """Test cases for creating sync history records."""
     
-    def test_create_sync_history_record_success(self, db_session):
+    def test_create_crm_sync_history_record_success(self, db_session):
         """Test successful creation of sync history record."""
-        result = create_sync_history_record(
+        result = create_crm_sync_history_record(
             db=db_session,
             usdot="12345",
             sync_status="SUCCESS",
@@ -44,9 +44,9 @@ class TestCreateSyncHistoryRecord:
         assert result.detail == "Successfully created account"
         assert isinstance(result.sync_timestamp, datetime)
     
-    def test_create_sync_history_record_failed(self, db_session):
+    def test_create_crm_sync_history_record_failed(self, db_session):
         """Test creation of failed sync history record."""
-        result = create_sync_history_record(
+        result = create_crm_sync_history_record(
             db=db_session,
             usdot="12346",
             sync_status="FAILED",
@@ -61,11 +61,11 @@ class TestCreateSyncHistoryRecord:
         assert result.sobject_id is None
         assert "INVALID_EMAIL_ADDRESS" in result.detail
     
-    def test_create_sync_history_record_custom_timestamp(self, db_session):
+    def test_create_crm_sync_history_record_custom_timestamp(self, db_session):
         """Test creation with custom timestamp."""
         custom_time = datetime(2023, 1, 1, 12, 0, 0)
         
-        result = create_sync_history_record(
+        result = create_crm_sync_history_record(
             db=db_session,
             usdot="12347",
             sync_status="SUCCESS",
@@ -81,10 +81,10 @@ class TestCreateSyncHistoryRecord:
 class TestGetSyncHistoryByUsdot:
     """Test cases for getting sync history by USDOT."""
     
-    def test_get_sync_history_by_usdot_found(self, db_session):
+    def test_get_crm_sync_history_by_usdot_found(self, db_session):
         """Test retrieving sync history for existing USDOT."""
         # Create test records
-        create_sync_history_record(
+        create_crm_sync_history_record(
             db=db_session,
             usdot="12345",
             sync_status="SUCCESS",
@@ -92,7 +92,7 @@ class TestGetSyncHistoryByUsdot:
             user_id="user1",
             org_id="org1"
         )
-        create_sync_history_record(
+        create_crm_sync_history_record(
             db=db_session,
             usdot="12345",
             sync_status="FAILED",
@@ -101,16 +101,16 @@ class TestGetSyncHistoryByUsdot:
             org_id="org1"
         )
         
-        results = get_sync_history_by_usdot(db_session, "12345")
+        results = get_crm_sync_history_by_usdot(db_session, "12345")
         
         assert len(results) == 2
         assert all(record.usdot == "12345" for record in results)
         # Should be ordered by timestamp desc (most recent first)
         assert results[0].sync_timestamp >= results[1].sync_timestamp
     
-    def test_get_sync_history_by_usdot_with_org_filter(self, db_session):
+    def test_get_crm_sync_history_by_usdot_with_org_filter(self, db_session):
         """Test retrieving sync history filtered by org."""
-        create_sync_history_record(
+        create_crm_sync_history_record(
             db=db_session,
             usdot="12345",
             sync_status="SUCCESS",
@@ -118,7 +118,7 @@ class TestGetSyncHistoryByUsdot:
             user_id="user1",
             org_id="org1"
         )
-        create_sync_history_record(
+        create_crm_sync_history_record(
             db=db_session,
             usdot="12345",
             sync_status="SUCCESS",
@@ -127,21 +127,21 @@ class TestGetSyncHistoryByUsdot:
             org_id="org2"
         )
         
-        results = get_sync_history_by_usdot(db_session, "12345", org_id="org1")
+        results = get_crm_sync_history_by_usdot(db_session, "12345", org_id="org1")
         
         assert len(results) == 1
         assert results[0].org_id == "org1"
     
-    def test_get_sync_history_by_usdot_not_found(self, db_session):
+    def test_get_crm_sync_history_by_usdot_not_found(self, db_session):
         """Test retrieving sync history for non-existent USDOT."""
-        results = get_sync_history_by_usdot(db_session, "99999")
+        results = get_crm_sync_history_by_usdot(db_session, "99999")
         assert len(results) == 0
     
-    def test_get_sync_history_by_usdot_with_limit(self, db_session):
+    def test_get_crm_sync_history_by_usdot_with_limit(self, db_session):
         """Test retrieving sync history with limit."""
         # Create 5 records
         for i in range(5):
-            create_sync_history_record(
+            create_crm_sync_history_record(
                 db=db_session,
                 usdot="12345",
                 sync_status="SUCCESS",
@@ -150,16 +150,16 @@ class TestGetSyncHistoryByUsdot:
                 org_id="org1"
             )
         
-        results = get_sync_history_by_usdot(db_session, "12345", limit=3)
+        results = get_crm_sync_history_by_usdot(db_session, "12345", limit=3)
         assert len(results) == 3
 
 
 class TestGetSyncHistoryByOrg:
     """Test cases for getting sync history by org."""
     
-    def test_get_sync_history_by_org_found(self, db_session):
+    def test_get_crm_sync_history_by_org_found(self, db_session):
         """Test retrieving sync history for existing org."""
-        create_sync_history_record(
+        create_crm_sync_history_record(
             db=db_session,
             usdot="12345",
             sync_status="SUCCESS",
@@ -167,7 +167,7 @@ class TestGetSyncHistoryByOrg:
             user_id="user1",
             org_id="org1"
         )
-        create_sync_history_record(
+        create_crm_sync_history_record(
             db=db_session,
             usdot="12346",
             sync_status="FAILED",
@@ -176,14 +176,14 @@ class TestGetSyncHistoryByOrg:
             org_id="org1"
         )
         
-        results = get_sync_history_by_org(db_session, "org1")
+        results = get_crm_sync_history_by_org(db_session, "org1")
         
         assert len(results) == 2
         assert all(record.org_id == "org1" for record in results)
     
-    def test_get_sync_history_by_org_with_user_filter(self, db_session):
+    def test_get_crm_sync_history_by_org_with_user_filter(self, db_session):
         """Test retrieving sync history filtered by user."""
-        create_sync_history_record(
+        create_crm_sync_history_record(
             db=db_session,
             usdot="12345",
             sync_status="SUCCESS",
@@ -191,7 +191,7 @@ class TestGetSyncHistoryByOrg:
             user_id="user1",
             org_id="org1"
         )
-        create_sync_history_record(
+        create_crm_sync_history_record(
             db=db_session,
             usdot="12346",
             sync_status="SUCCESS",
@@ -200,12 +200,12 @@ class TestGetSyncHistoryByOrg:
             org_id="org1"
         )
         
-        results = get_sync_history_by_org(db_session, "org1", user_id="user1")
+        results = get_crm_sync_history_by_org(db_session, "org1", user_id="user1")
         
         assert len(results) == 1
         assert results[0].user_id == "user1"
     
-    def test_get_sync_history_by_org_not_found(self, db_session):
+    def test_get_crm_sync_history_by_org_not_found(self, db_session):
         """Test retrieving sync history for non-existent org."""
-        results = get_sync_history_by_org(db_session, "nonexistent")
+        results = get_crm_sync_history_by_org(db_session, "nonexistent")
         assert len(results) == 0

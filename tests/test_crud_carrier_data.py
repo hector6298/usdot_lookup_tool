@@ -35,7 +35,7 @@ class TestGetCarrierData:
         """Test getting carrier data with org filtering."""
         # Arrange
         org_id = "test_org_123"
-        from app.models.sobject_sync_status import CRMSyncStatus
+        from app.models.crm_sync_status import CRMSyncStatus
         mock_sync_records = [Mock(usdot="123456"), Mock(usdot="789012")]
         mock_carriers = [Mock(spec=CarrierData) for _ in range(2)]
         

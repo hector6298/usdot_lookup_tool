@@ -1,8 +1,8 @@
 import logging
 from sqlmodel import Session, select
 from app.models.carrier_data import CarrierData, CarrierDataCreate
-from app.models.sobject_sync_status import CRMSyncStatus
-from app.crud.sobject_sync_status import upsert_crm_sync_status
+from app.models.crm_sync_status import CRMSyncStatus
+from app.crud.crm_sync_status import upsert_crm_sync_status
 from fastapi import HTTPException
 from datetime import datetime, timezone
 

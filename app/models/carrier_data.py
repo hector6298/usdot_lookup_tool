@@ -7,7 +7,7 @@ from sqlalchemy import Column, BigInteger
 if TYPE_CHECKING:
     from app.models.ocr_results import OCRResult
     from app.models.engagement import CarrierEngagementStatus
-    from app.models.sobject_sync_status import CRMSyncStatus
+    from app.models.crm_sync_status import CRMSyncStatus
 
 class CarrierDataCreate(SQLModel):
     model_config = ConfigDict(

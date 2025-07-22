@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from pydantic import ConfigDict
 
 
-class CRMObjectSyncHistory(SQLModel, table=True):
+class CRMSyncHistory(SQLModel, table=True):
     """Append-only log table for tracking all CRM sync attempts."""
     
     __tablename__ = "sobject_sync_history"
@@ -23,4 +23,3 @@ class CRMObjectSyncHistory(SQLModel, table=True):
     crm_object_type: str = Field(default="account")  # account, opportunity, etc
     crm_object_id: Optional[str] = None  # CRM object ID if successful
     detail: Optional[str] = None  # Error messages or success details
-
