@@ -22,33 +22,35 @@ class TestGetCarrierData:
         """Test getting carrier data without org filtering."""
         # Arrange
         mock_carriers = [Mock(spec=CarrierData) for _ in range(3)]
-        mock_db_session.query.return_value.all.return_value = mock_carriers
+        mock_db_session.exec.return_value.all.return_value = mock_carriers
         
         # Act
         result = get_carrier_data(mock_db_session)
         
         # Assert
         assert result == mock_carriers
-        mock_db_session.query.assert_called_once_with(CarrierData)
+        mock_db_session.exec.assert_called_once()
         
     def test_get_carrier_data_with_org_id(self, mock_db_session):
         """Test getting carrier data with org filtering."""
         # Arrange
         org_id = "test_org_123"
-        mock_ocr_results = [Mock(dot_reading="123456"), Mock(dot_reading="789012")]
+        from app.models.sobject_sync_status import CRMSyncStatus
+        mock_sync_records = [Mock(usdot="123456"), Mock(usdot="789012")]
         mock_carriers = [Mock(spec=CarrierData) for _ in range(2)]
         
-        with patch('app.crud.carrier_data.get_ocr_results') as mock_get_ocr:
-            mock_get_ocr.return_value = mock_ocr_results
-            mock_db_session.query.return_value.filter.return_value.all.return_value = mock_carriers
-            
-            # Act  
-            result = get_carrier_data(mock_db_session, org_id=org_id)
-            
-            # Assert
-            assert result == mock_carriers
-            mock_get_ocr.assert_called_once_with(mock_db_session, org_id=org_id, valid_dot_only=True)
-            mock_db_session.query.assert_called_once_with(CarrierData)
+        # Mock the CRM sync status query and carrier data query
+        mock_db_session.exec.side_effect = [
+            Mock(all=Mock(return_value=mock_sync_records)),  # CRM sync query
+            Mock(all=Mock(return_value=mock_carriers))       # Carrier data query
+        ]
+        
+        # Act  
+        result = get_carrier_data(mock_db_session, org_id=org_id)
+        
+        # Assert
+        assert result == mock_carriers
+        assert mock_db_session.exec.call_count == 2
             
     def test_get_carrier_data_with_pagination(self, mock_db_session):
         """Test getting carrier data with pagination."""
@@ -56,16 +58,14 @@ class TestGetCarrierData:
         offset, limit = 10, 5
         mock_carriers = [Mock(spec=CarrierData) for _ in range(5)]
         
-        mock_query = mock_db_session.query.return_value
-        mock_query.offset.return_value.limit.return_value.all.return_value = mock_carriers
+        mock_db_session.exec.return_value.all.return_value = mock_carriers
         
         # Act
         result = get_carrier_data(mock_db_session, offset=offset, limit=limit)
         
         # Assert
         assert result == mock_carriers
-        mock_query.offset.assert_called_once_with(offset)
-        mock_query.offset.return_value.limit.assert_called_once_with(limit)
+        mock_db_session.exec.assert_called_once()
 
 
 class TestGetCarrierDataByDot:
@@ -75,27 +75,27 @@ class TestGetCarrierDataByDot:
         """Test getting carrier data by DOT number when carrier exists."""
         # Arrange
         dot_number = "123456"
-        mock_db_session.query.return_value.filter.return_value.first.return_value = sample_carrier_db_record
+        mock_db_session.exec.return_value.first.return_value = sample_carrier_db_record
         
         # Act
         result = get_carrier_data_by_dot(mock_db_session, dot_number)
         
         # Assert
         assert result == sample_carrier_db_record
-        mock_db_session.query.assert_called_once_with(CarrierData)
+        mock_db_session.exec.assert_called_once()
         
     def test_get_carrier_data_by_dot_not_found(self, mock_db_session):
         """Test getting carrier data by DOT number when carrier doesn't exist."""
         # Arrange
         dot_number = "999999"
-        mock_db_session.query.return_value.filter.return_value.first.return_value = None
+        mock_db_session.exec.return_value.first.return_value = None
         
         # Act
         result = get_carrier_data_by_dot(mock_db_session, dot_number)
         
         # Assert
         assert result is None
-        mock_db_session.query.assert_called_once_with(CarrierData)
+        mock_db_session.exec.assert_called_once()
 
 
 class TestSaveCarrierData:
@@ -104,7 +104,7 @@ class TestSaveCarrierData:
     def test_save_carrier_data_new_record(self, mock_db_session, sample_carrier_data):
         """Test saving new carrier data."""
         # Arrange
-        mock_db_session.query.return_value.filter.return_value.first.return_value = None
+        mock_db_session.exec.return_value.first.return_value = None
         
         with patch('app.models.carrier_data.CarrierData.model_validate') as mock_validate:
             mock_carrier_record = Mock(spec=CarrierData)
@@ -125,11 +125,11 @@ class TestSaveCarrierData:
         # Arrange
         existing_carrier = Mock(spec=CarrierData)
         existing_carrier.legal_name = "Old Name"
-        mock_db_session.query.return_value.filter.return_value.first.return_value = existing_carrier
+        mock_db_session.exec.return_value.first.return_value = existing_carrier
         
         with patch('app.models.carrier_data.CarrierData.model_validate') as mock_validate:
             mock_carrier_record = Mock(spec=CarrierData)
-            mock_carrier_record.dict.return_value = {"legal_name": "New Name", "usdot": "123456"}
+            mock_carrier_record.model_dump.return_value = {"legal_name": "New Name", "usdot": "123456"}
             mock_validate.return_value = mock_carrier_record
             
             # Act
@@ -144,7 +144,7 @@ class TestSaveCarrierData:
     def test_save_carrier_data_database_error(self, mock_db_session, sample_carrier_data):
         """Test handling database errors when saving carrier data."""
         # Arrange
-        mock_db_session.query.return_value.filter.return_value.first.return_value = None
+        mock_db_session.exec.return_value.first.return_value = None
         mock_db_session.commit.side_effect = Exception("Database error")
         
         with patch('app.models.carrier_data.CarrierData.model_validate') as mock_validate:
@@ -169,7 +169,7 @@ class TestGenerateCarrierRecords:
             CarrierDataCreate(usdot="789012", legal_name="Carrier 2", lookup_success_flag=True)
         ]
         
-        mock_db_session.query.return_value.filter.return_value.first.return_value = None
+        mock_db_session.exec.return_value.first.return_value = None
         
         with patch('app.models.carrier_data.CarrierData.model_validate') as mock_validate:
             mock_records = [Mock(spec=CarrierData) for _ in range(2)]

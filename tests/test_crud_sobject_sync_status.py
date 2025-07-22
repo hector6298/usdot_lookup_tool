@@ -1,13 +1,13 @@
 import pytest
 from sqlmodel import Session, create_engine, SQLModel
 from app.crud.sobject_sync_status import (
-    upsert_sync_status,
-    get_sync_status_by_usdot,
-    get_sync_status_by_org,
-    get_sync_status_for_usdots,
-    delete_sync_status
+    upsert_crm_sync_status,
+    get_crm_sync_status_by_usdot,
+    get_crm_sync_status_by_org,
+    get_crm_sync_status_for_usdots,
+    delete_crm_sync_status
 )
-from app.models.sobject_sync_status import SObjectSyncStatus
+from app.models.sobject_sync_status import CRMSyncStatus
 from datetime import datetime
 
 
@@ -25,7 +25,7 @@ class TestUpsertSyncStatus:
     
     def test_upsert_sync_status_new_record(self, db_session):
         """Test creating a new sync status record."""
-        result = upsert_sync_status(
+        result = upsert_crm_sync_status(
             db=db_session,
             usdot="12345",
             org_id="org1",
@@ -37,7 +37,7 @@ class TestUpsertSyncStatus:
         assert result.usdot == "12345"
         assert result.org_id == "org1"
         assert result.user_id == "user1"
-        assert result.sync_status == "SUCCESS"
+        assert result.sobject_sync_status == "SUCCESS"
         assert result.sobject_id == "sf001"
         assert isinstance(result.created_at, datetime)
         assert isinstance(result.updated_at, datetime)
@@ -45,7 +45,7 @@ class TestUpsertSyncStatus:
     def test_upsert_sync_status_update_existing(self, db_session):
         """Test updating an existing sync status record."""
         # Create initial record
-        initial = upsert_sync_status(
+        initial = upsert_crm_sync_status(
             db=db_session,
             usdot="12345",
             org_id="org1",
@@ -55,7 +55,7 @@ class TestUpsertSyncStatus:
         initial_created_at = initial.created_at
         
         # Update the record
-        updated = upsert_sync_status(
+        updated = upsert_crm_sync_status(
             db=db_session,
             usdot="12345",
             org_id="org1",
@@ -67,14 +67,14 @@ class TestUpsertSyncStatus:
         assert updated.usdot == "12345"
         assert updated.org_id == "org1"
         assert updated.user_id == "user2"  # Should be updated
-        assert updated.sync_status == "SUCCESS"  # Should be updated
+        assert updated.sobject_sync_status == "SUCCESS"  # Should be updated
         assert updated.sobject_id == "sf001"  # Should be updated
         assert updated.created_at == initial_created_at  # Should remain the same
         assert updated.updated_at > initial_created_at  # Should be newer
     
     def test_upsert_sync_status_different_orgs(self, db_session):
         """Test that records with same USDOT but different orgs are separate."""
-        result1 = upsert_sync_status(
+        result1 = upsert_crm_sync_status(
             db=db_session,
             usdot="12345",
             org_id="org1",
@@ -82,7 +82,7 @@ class TestUpsertSyncStatus:
             sync_status="SUCCESS"
         )
         
-        result2 = upsert_sync_status(
+        result2 = upsert_crm_sync_status(
             db=db_session,
             usdot="12345",
             org_id="org2",
@@ -92,8 +92,8 @@ class TestUpsertSyncStatus:
         
         assert result1.org_id == "org1"
         assert result2.org_id == "org2"
-        assert result1.sync_status == "SUCCESS"
-        assert result2.sync_status == "FAILED"
+        assert result1.sobject_sync_status == "SUCCESS"
+        assert result2.sobject_sync_status == "FAILED"
 
 
 class TestGetSyncStatusByUsdot:
@@ -101,7 +101,7 @@ class TestGetSyncStatusByUsdot:
     
     def test_get_sync_status_by_usdot_found(self, db_session):
         """Test retrieving existing sync status."""
-        upsert_sync_status(
+        upsert_crm_sync_status(
             db=db_session,
             usdot="12345",
             org_id="org1",
@@ -110,22 +110,22 @@ class TestGetSyncStatusByUsdot:
             sobject_id="sf001"
         )
         
-        result = get_sync_status_by_usdot(db_session, "12345", "org1")
+        result = get_crm_sync_status_by_usdot(db_session, "12345", "org1")
         
         assert result is not None
         assert result.usdot == "12345"
         assert result.org_id == "org1"
-        assert result.sync_status == "SUCCESS"
+        assert result.sobject_sync_status == "SUCCESS"
         assert result.sobject_id == "sf001"
     
     def test_get_sync_status_by_usdot_not_found(self, db_session):
         """Test retrieving non-existent sync status."""
-        result = get_sync_status_by_usdot(db_session, "99999", "org1")
+        result = get_crm_sync_status_by_usdot(db_session, "99999", "org1")
         assert result is None
     
     def test_get_sync_status_by_usdot_wrong_org(self, db_session):
         """Test retrieving sync status with wrong org."""
-        upsert_sync_status(
+        upsert_crm_sync_status(
             db=db_session,
             usdot="12345",
             org_id="org1",
@@ -133,7 +133,7 @@ class TestGetSyncStatusByUsdot:
             sync_status="SUCCESS"
         )
         
-        result = get_sync_status_by_usdot(db_session, "12345", "org2")
+        result = get_crm_sync_status_by_usdot(db_session, "12345", "org2")
         assert result is None
 
 
@@ -142,21 +142,21 @@ class TestGetSyncStatusByOrg:
     
     def test_get_sync_status_by_org_all(self, db_session):
         """Test retrieving all sync status records for an org."""
-        upsert_sync_status(
+        upsert_crm_sync_status(
             db=db_session,
             usdot="12345",
             org_id="org1",
             user_id="user1",
             sync_status="SUCCESS"
         )
-        upsert_sync_status(
+        upsert_crm_sync_status(
             db=db_session,
             usdot="12346",
             org_id="org1",
             user_id="user2",
             sync_status="FAILED"
         )
-        upsert_sync_status(
+        upsert_crm_sync_status(
             db=db_session,
             usdot="12347",
             org_id="org2",
@@ -164,7 +164,7 @@ class TestGetSyncStatusByOrg:
             sync_status="SUCCESS"
         )
         
-        results = get_sync_status_by_org(db_session, "org1")
+        results = get_crm_sync_status_by_org(db_session, "org1")
         
         assert len(results) == 2
         assert all(record.org_id == "org1" for record in results)
@@ -175,14 +175,14 @@ class TestGetSyncStatusByOrg:
     
     def test_get_sync_status_by_org_filtered_by_status(self, db_session):
         """Test retrieving sync status filtered by status."""
-        upsert_sync_status(
+        upsert_crm_sync_status(
             db=db_session,
             usdot="12345",
             org_id="org1",
             user_id="user1",
             sync_status="SUCCESS"
         )
-        upsert_sync_status(
+        upsert_crm_sync_status(
             db=db_session,
             usdot="12346",
             org_id="org1",
@@ -190,8 +190,8 @@ class TestGetSyncStatusByOrg:
             sync_status="FAILED"
         )
         
-        successful_results = get_sync_status_by_org(db_session, "org1", sync_status="SUCCESS")
-        failed_results = get_sync_status_by_org(db_session, "org1", sync_status="FAILED")
+        successful_results = get_crm_sync_status_by_org(db_session, "org1", sync_status="SUCCESS")
+        failed_results = get_crm_sync_status_by_org(db_session, "org1", sync_status="FAILED")
         
         assert len(successful_results) == 1
         assert successful_results[0].usdot == "12345"
@@ -207,7 +207,7 @@ class TestGetSyncStatusForUsdots:
         usdots = ["12345", "12346", "12347"]
         
         for usdot in usdots:
-            upsert_sync_status(
+            upsert_crm_sync_status(
                 db=db_session,
                 usdot=usdot,
                 org_id="org1",
@@ -215,7 +215,7 @@ class TestGetSyncStatusForUsdots:
                 sync_status="SUCCESS"
             )
         
-        results = get_sync_status_for_usdots(db_session, usdots, "org1")
+        results = get_crm_sync_status_for_usdots(db_session, usdots, "org1")
         
         assert len(results) == 3
         assert set(results.keys()) == set(usdots)
@@ -223,7 +223,7 @@ class TestGetSyncStatusForUsdots:
     
     def test_get_sync_status_for_usdots_partial_found(self, db_session):
         """Test retrieving sync status when only some USDOTs exist."""
-        upsert_sync_status(
+        upsert_crm_sync_status(
             db=db_session,
             usdot="12345",
             org_id="org1",
@@ -232,7 +232,7 @@ class TestGetSyncStatusForUsdots:
         )
         
         usdots = ["12345", "12346", "12347"]
-        results = get_sync_status_for_usdots(db_session, usdots, "org1")
+        results = get_crm_sync_status_for_usdots(db_session, usdots, "org1")
         
         assert len(results) == 1
         assert "12345" in results
@@ -242,7 +242,7 @@ class TestGetSyncStatusForUsdots:
     def test_get_sync_status_for_usdots_none_found(self, db_session):
         """Test retrieving sync status when no USDOTs exist."""
         usdots = ["99999", "99998", "99997"]
-        results = get_sync_status_for_usdots(db_session, usdots, "org1")
+        results = get_crm_sync_status_for_usdots(db_session, usdots, "org1")
         
         assert len(results) == 0
         assert results == {}
@@ -253,7 +253,7 @@ class TestDeleteSyncStatus:
     
     def test_delete_sync_status_success(self, db_session):
         """Test successful deletion of sync status."""
-        upsert_sync_status(
+        upsert_crm_sync_status(
             db=db_session,
             usdot="12345",
             org_id="org1",
@@ -262,16 +262,16 @@ class TestDeleteSyncStatus:
         )
         
         # Verify it exists
-        assert get_sync_status_by_usdot(db_session, "12345", "org1") is not None
+        assert get_crm_sync_status_by_usdot(db_session, "12345", "org1") is not None
         
         # Delete it
-        result = delete_sync_status(db_session, "12345", "org1")
+        result = delete_crm_sync_status(db_session, "12345", "org1")
         assert result is True
         
         # Verify it's gone
-        assert get_sync_status_by_usdot(db_session, "12345", "org1") is None
+        assert get_crm_sync_status_by_usdot(db_session, "12345", "org1") is None
     
     def test_delete_sync_status_not_found(self, db_session):
         """Test deletion of non-existent sync status."""
-        result = delete_sync_status(db_session, "99999", "org1")
+        result = delete_crm_sync_status(db_session, "99999", "org1")
         assert result is False

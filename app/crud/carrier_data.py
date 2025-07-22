@@ -70,10 +70,12 @@ def save_carrier_data(db: Session, carrier_data: CarrierDataCreate) -> CarrierDa
         carrier_record = CarrierData.model_validate(carrier_data)
 
         # Check if the carrier with the same USDOT number already exists
-        existing_carrier = db.query(CarrierData).filter(CarrierData.usdot == carrier_data.usdot).first()
+        existing_carrier = db.exec(
+            select(CarrierData).where(CarrierData.usdot == carrier_data.usdot)
+        ).first()
         if existing_carrier:
             logger.info(f"🔍 Carrier with USDOT {carrier_data.usdot} exists. Updating record.")
-            for key, value in carrier_record.dict().items():
+            for key, value in carrier_record.model_dump().items():
                 setattr(existing_carrier, key, value)
             db.commit()
             db.refresh(existing_carrier)
