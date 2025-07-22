@@ -66,7 +66,7 @@ def generate_engagement_records(db: Session,
             if existing_engagement:
                 logger.info(f"🔍 Engagement record already exists for USDOT: {usdot} and ORG {org_id}. Skipping.")
                 continue
-
+            
             # Create a new engagement record
             engagement_record = CarrierEngagementStatus(
                 usdot=usdot,

@@ -75,7 +75,7 @@ async def salesforce_callback(request: Request, code: str = None, state: str = N
     
     # --- Upsert the token in the database ---
     user_id = request.session["userinfo"]["sub"]
-    org_id = request.session["userinfo"].get("org_id", "default")  # Adjust as needed
+    org_id = request.session["userinfo"].get("org_id", user_id)  # Adjust as needed
     upsert_salesforce_token(db, user_id, org_id, tokens)
 
     request.session["sf_connected"] = True
@@ -91,7 +91,7 @@ async def disconnect_salesforce(request: Request,
                                 db: Session = Depends(get_db)):
     # Remove token from DB
     user_id = request.session["userinfo"]["sub"]
-    org_id = request.session["userinfo"].get("org_id", "default")  
+    org_id = request.session["userinfo"].get("org_id", user_id)  
 
     if delete_salesforce_token(db, user_id, org_id, 'salesforce'):
         logger.info(f"Salesforce token deleted for user {user_id} and org {org_id}.")
@@ -110,7 +110,7 @@ async def upload_carriers_to_salesforce(
     db: Session = Depends(get_db)
 ):
     user_id = request.session["userinfo"]["sub"]
-    org_id = request.session["userinfo"].get("org_id", "default")  # adjust as needed
+    org_id = request.session["userinfo"].get("org_id", user_id)  # adjust as needed
 
     if request.session.get("sf_connected", False):
         # 1. Get a valid Salesforce access token (refresh if needed)

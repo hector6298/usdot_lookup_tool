@@ -183,29 +183,6 @@ const RowTemplates = {
             <td>${carrier.phone}</td>
             <td>${carrier.mailing_address}</td>
             <td>${carrier.created_at}</td>
-            <td><input type="checkbox" class="form-check-input checkbox-track" 
-            data-usdot="${carrier.usdot}" 
-            data-field="carrier_contacted"
-            ${carrier.carrier_contacted ? "checked" : ""}>
-            </td>
-            <td><input type="checkbox" class="form-check-input checkbox-track" 
-            data-usdot="${carrier.usdot}" 
-            data-field="carrier_followed_up"
-            ${carrier.carrier_followed_up ? "checked" : ""}>
-            </td>
-            <td>
-            ${carrier.carrier_contacted ? 
-                `<input type="date" class="form-control checkbox-track" 
-                data-usdot="${carrier.usdot}" 
-                data-field="carrier_follow_up_by_date"
-                value="${carrier.carrier_follow_up_by_date}">` 
-                : "Carrier not Contacted"}
-            </td>
-            <td><input type="checkbox" class="form-check-input checkbox-track" 
-            data-usdot="${carrier.usdot}" 
-            data-field="carrier_interested"
-            ${carrier.carrier_interested ? "checked" : ""}>
-            </td>
             <td>
                 ${syncStatusDisplay}
                 ${carrier.sf_sync_timestamp ? `<br><small class="text-muted">${carrier.sf_sync_timestamp}</small>` : ''}
