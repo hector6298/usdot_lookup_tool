@@ -1,6 +1,7 @@
 import logging
 from sqlmodel import Session, select
 from app.models.carrier_data import CarrierData, CarrierDataCreate
+from app.models.sobject_sync_status import CRMSyncStatus
 from app.crud.sobject_sync_status import upsert_crm_sync_status
 from fastapi import HTTPException
 from datetime import datetime, timezone
@@ -18,7 +19,6 @@ def get_carrier_data(db: Session,
     if org_id:
         logger.info(f"🔍 Filtering carrier data by org ID: {org_id}")
         # Get USDOTs from CRM sync status instead of OCR results
-        from app.models.sobject_sync_status import CRMSyncStatus
         
         query = select(CRMSyncStatus).where(CRMSyncStatus.org_id == org_id)
         if offset is not None and limit is not None:
@@ -134,7 +134,6 @@ def generate_crm_sync_records(db: Session,
     logger.info("🔍 Generating CRM sync status records for carriers."
                 f"USDOT numbers: {usdot_numbers}, User ID: {user_id}, Org ID: {org_id}")
     
-    from app.models.sobject_sync_status import CRMSyncStatus
     sync_records = []
     
     for usdot in usdot_numbers:
@@ -150,7 +149,6 @@ def generate_crm_sync_records(db: Session,
             if existing_sync:
                 logger.info(f"🔍 CRM sync record already exists for USDOT: {usdot} and ORG {org_id}. Updating.")
                 existing_sync.user_id = user_id
-                from datetime import datetime
                 existing_sync.updated_at = datetime.now(timezone.utc)
                 sync_records.append(existing_sync)
             else:
