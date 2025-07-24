@@ -1,5 +1,3 @@
-import { Engagement } from "./update_carrier_engagement.js";
-
 const Filters = {
     offset: 0,
     limit: 10,
@@ -80,10 +78,6 @@ const Filters = {
             tbody.insertAdjacentHTML("beforeend", row);
         });
 
-        // Reinitialize checkboxes for engagement tracking
-        if (tableType === "carriers") {
-            Engagement.reinitializeInputs();
-        }
     },
 
     // Handle filter form submission
@@ -103,6 +97,30 @@ const Filters = {
         const container = document.getElementById("scrollable-container");
         if (container.scrollTop + container.clientHeight >= container.scrollHeight) {
             Filters.fetchData(true); // Append new data
+        }
+    },
+
+    // Salesforce sync logic as a method
+    syncToSalesforce: async function () {
+        const selected = Array.from(document.querySelectorAll(".carrier-select:checked"))
+            .map(cb => cb.getAttribute("data-usdot"));
+        if (selected.length === 0) {
+            alert("Please select at least one carrier to sync.");
+            return;
+        }
+        const response = await fetch("/salesforce/upload_carriers", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ carriers_usdot: selected })
+        });
+        if (response.ok) {
+            alert("Sync request sent!");
+            // Optionally, reload table data here
+            Filters.offset = 0;
+            Filters.hasMoreData = true;
+            Filters.fetchData(false);
+        } else {
+            alert("Failed to sync to Salesforce.");
         }
     },
 
@@ -132,28 +150,7 @@ const Filters = {
         // Sync to Salesforce button
         const syncBtn = document.getElementById("sync-to-salesforce");
         if (syncBtn) {
-            syncBtn.addEventListener("click", async function () {
-                const selected = Array.from(document.querySelectorAll(".carrier-select:checked"))
-                    .map(cb => cb.getAttribute("data-usdot"));
-                if (selected.length === 0) {
-                    alert("Please select at least one carrier to sync.");
-                    return;
-                }
-                const response = await fetch("/salesforce/upload_carriers", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ carriers_usdot: selected })
-                });
-                if (response.ok) {
-                    alert("Sync request sent!");
-                    // Optionally, reload table data here
-                    Filters.offset = 0;
-                    Filters.hasMoreData = true;
-                    Filters.fetchData(false);
-                } else {
-                    alert("Failed to sync to Salesforce.");
-                }
-            });
+            syncBtn.addEventListener("click", Filters.syncToSalesforce);
         }
 
         // Load the initial batch of data
@@ -185,7 +182,11 @@ const RowTemplates = {
             <td>${carrier.created_at}</td>
             <td>
                 ${syncStatusDisplay}
-                ${carrier.sf_sync_timestamp ? `<br><small class="text-muted">${carrier.sf_sync_timestamp}</small>` : ''}
+                ${carrier.crm_synched_at ? `<br><small class="text-muted">${carrier.crm_synched_at}</small>` : ''}
+            </td>
+            <td>
+                ${carrier.crm_object_id ? `<span class="badge bg-info">CRM ID: ${carrier.crm_object_id}</span>` : ''}
+                ${carrier.crm_platform ? `<br><small class="text-muted">Platform: ${carrier.crm_platform}</small>` : ''}
             </td>
             </tr>
         `;

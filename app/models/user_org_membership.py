@@ -4,7 +4,7 @@ from sqlmodel import Relationship
 
 if TYPE_CHECKING:
     from app.models.ocr_results import OCRResult
-    from app.models.engagement import CarrierEngagementStatus
+    from app.models.crm_object_sync_status import CarrierWithCRMSyncStatusResponse
 
 class AppUser(SQLModel, table=True):
     """Represents an application user in the database."""
@@ -16,7 +16,7 @@ class AppUser(SQLModel, table=True):
     is_active: bool = True
 
     ocr_results: List["OCRResult"] = Relationship(back_populates="app_user")
-    carrier_engagement_status_usr: List["CarrierEngagementStatus"] = Relationship(back_populates="app_user")
+    carrier_engagement_status_usr: List["CarrierWithCRMSyncStatusResponse"] = Relationship(back_populates="app_user")
     user_org_membership: List["UserOrgMembership"] = Relationship(back_populates="app_user")
 
 class AppOrg(SQLModel, table=True):
@@ -26,7 +26,7 @@ class AppOrg(SQLModel, table=True):
     is_active: bool = True
 
     user_org_membership: List["UserOrgMembership"] = Relationship(back_populates="app_org")
-    carrier_engagement_status_org: List["CarrierEngagementStatus"] = Relationship(back_populates="app_org")
+    carrier_engagement_status_org: List["CarrierWithCRMSyncStatusResponse"] = Relationship(back_populates="app_org")
     ocr_results: List["OCRResult"] = Relationship(back_populates="app_org")
 
 class UserOrgMembership(SQLModel, table=True):
