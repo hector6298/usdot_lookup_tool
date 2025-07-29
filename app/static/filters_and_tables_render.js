@@ -162,10 +162,10 @@ const Filters = {
 // Row templates for different table types
 const RowTemplates = {
     carriers: function (carrier) {
-        const isAlreadySynced = carrier.sf_sync_status === "SUCCESS";
-        const syncStatusDisplay = carrier.sf_sync_status === "SUCCESS" 
+        const isAlreadySynced = carrier.crm_sync_status === "SUCCESS";
+        const syncStatusDisplay = carrier.crm_sync_status === "SUCCESS" 
             ? `<span class="badge bg-success">Synced</span>` 
-            : carrier.sf_sync_status === "FAILED" 
+            : carrier.crm_sync_status === "FAILED" 
                 ? `<span class="badge bg-danger">Failed</span>`
                 : `<span class="badge bg-secondary">Not Synced</span>`;
         
@@ -185,8 +185,8 @@ const RowTemplates = {
                 ${carrier.crm_synched_at ? `<br><small class="text-muted">${carrier.crm_synched_at}</small>` : ''}
             </td>
             <td>
-                ${carrier.crm_object_id ? `<span class="badge bg-info">CRM ID: ${carrier.crm_object_id}</span>` : ''}
-                ${carrier.crm_platform ? `<br><small class="text-muted">Platform: ${carrier.crm_platform}</small>` : ''}
+                ${carrier.crm_object_id ? `<span class="badge bg-info">${carrier.crm_object_id}</span>` : ''}
+                ${carrier.crm_platform ? `<br><small class="text-muted">${carrier.crm_platform}</small>` : ''}
             </td>
             </tr>
         `;

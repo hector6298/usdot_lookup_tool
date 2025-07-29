@@ -48,8 +48,7 @@ def generate_crm_sync_records(db: Session,
                                 user_id: str, 
                                 org_id:str) -> list[CRMObjectSyncStatus]:
     """Generates CRM Sync records for the given USDOT numbers."""
-    logger.info("🔍 Generating Sync records for carriers."
-                f"USDOT numbers: {usdot_numbers}, User ID: {user_id}, Org ID: {org_id}")
+
     sync_records = []
     for usdot in usdot_numbers:
         try:
@@ -73,6 +72,12 @@ def generate_crm_sync_records(db: Session,
                     usdot=usdot,
                     org_id=org_id,
                     user_id=user_id,
+                    crm_sync_status="NOT_SYNCED",
+                    created_at=datetime.utcnow(),
+                    updated_at=datetime.utcnow(),
+                    crm_object_id=None,  # Initially set to None
+                    crm_synched_at=None,
+                    crm_platform=None
                 )
                 sync_records.append(engagement_record)
 
@@ -112,7 +117,9 @@ def update_crm_sync_status(
     org_id: str,
     user_id: str,
     crm_sync_status: str,
-    crm_object_id: Optional[str] = None
+    crm_object_id: Optional[str] = None,
+    crm_synched_at: Optional[datetime] = None,
+    crm_platform: Optional[str] = None
 ) -> CRMObjectSyncStatus:
     """Create or update sync status record (SCD Type 1)."""
     try:
@@ -130,6 +137,8 @@ def update_crm_sync_status(
             existing_record.updated_at = datetime.utcnow()
             existing_record.crm_sync_status = crm_sync_status
             existing_record.crm_object_id = crm_object_id
+            existing_record.crm_synched_at = crm_synched_at
+            existing_record.crm_platform = crm_platform
             
             db.add(existing_record)
             db.commit()
@@ -144,7 +153,11 @@ def update_crm_sync_status(
                 org_id=org_id,
                 user_id=user_id,
                 crm_sync_status=crm_sync_status,
-                crm_object_id=crm_object_id
+                crm_object_id=crm_object_id,
+                crm_synched_at=crm_synched_at,
+                crm_platform=crm_platform,
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow()
             )
             
             db.add(new_record)

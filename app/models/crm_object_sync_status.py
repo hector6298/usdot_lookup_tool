@@ -10,9 +10,7 @@ if TYPE_CHECKING:
 
 class CRMObjectSyncStatus(SQLModel, table=True):
     """SCD type 1 table for maintaining current sync status per carrier and org."""
-    
-    __tablename__ = "sobject_sync_status"
-    
+        
     model_config = ConfigDict(
         populate_by_name=True,
         from_attributes=True
@@ -25,9 +23,9 @@ class CRMObjectSyncStatus(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
     crm_sync_status: str  # "SUCCESS" or "FAILED"
-    crm_synched_at: datetime = Field(default_factory=datetime.utcnow)
+    crm_synched_at: Optional[datetime]
     crm_object_id: Optional[str] = None  # CRM Object ID if successful
-    crm_platform: str = Field(nullable=False)  # e.g. "salesforce", "hubspot"
+    crm_platform: Optional[str] 
 
     # Relationship to CarrierData
     carrier_data: Optional["CarrierData"] = Relationship(back_populates="sync_status")

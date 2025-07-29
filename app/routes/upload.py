@@ -27,6 +27,7 @@ safer_client = CompanySnapshot()
 # Initialize APIRouter
 router = APIRouter()
 
+INVALID_DOT_READING = "00000000"  # Orphan record for invalid DOT readings
 
 @router.post("/upload",
              dependencies=[Depends(verify_login)])
@@ -34,6 +35,7 @@ async def upload_file(files: list[UploadFile] = File(...),
                       request: Request = None,
                       db: Session = Depends(get_db)):
     ocr_records = []  # Store OCR results before batch insert
+    unique_dot_readings = set()  # Track unique DOT readings
     valid_files = []
     invalid_files = []
     user_id = request.session['userinfo']['sub']
@@ -56,6 +58,13 @@ async def upload_file(files: list[UploadFile] = File(...),
                                          user_id=user_id,
                                          org_id=org_id)
             ocr_record = generate_dot_record(ocr_record)
+
+            # Check for duplicate dot_reading in current batch
+            if ocr_record.dot_reading in unique_dot_readings:
+                logger.warning(f"⚠️ Duplicate USDOT {ocr_record.dot_reading} found in batch, ignoring due to ignore_duplicated_usdot flag.")
+            else:
+                unique_dot_readings.add(ocr_record.dot_reading)
+
             ocr_records.append(ocr_record)
             valid_files.append(file.filename)
         except Exception as e:
@@ -63,16 +72,15 @@ async def upload_file(files: list[UploadFile] = File(...),
     
     if not ocr_records:
         raise HTTPException(status_code=400, detail="No valid files were processed.")
-    
 
-    if ocr_records:
-        logger.info("✅ All OCR results saved successfully.")
+
+    if unique_dot_readings:
         safer_lookups = []
-        for result in ocr_records:
+        for dot_reading in unique_dot_readings:
             
             # Perform SAFER web lookup for valid DOT readings (00000000 is the orphan record)
-            if result.dot_reading and result.dot_reading != "0000000":
-                safer_data = safer_web_lookup_from_dot(safer_client, result.dot_reading)
+            if dot_reading and dot_reading != INVALID_DOT_READING:
+                safer_data = safer_web_lookup_from_dot(safer_client, dot_reading)
                 if safer_data.lookup_success_flag:
                     safer_lookups.append(safer_data)
 
@@ -81,10 +89,10 @@ async def upload_file(files: list[UploadFile] = File(...),
             _ = save_carrier_data_bulk(db, safer_lookups, 
                                        user_id=user_id,
                                        org_id=org_id)
-                                       
+
+    if ocr_records:                          
         # Save to database using schema
         ocr_results = save_ocr_results_bulk(db, ocr_records)       
-
         logger.info(f"✅ Processed {len(ocr_results)} OCR results, {safer_lookups} carrier records saved.")
 
     # Collect all OCR result IDs

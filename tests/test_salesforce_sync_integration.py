@@ -8,10 +8,10 @@ import json
 from app.main import app
 from app.database import get_db
 from app.models.carrier_data import CarrierData
-from app.models.sobject_sync_history import SObjectSyncHistory
-from app.models.sobject_sync_status import SObjectSyncStatus
-from app.crud.sobject_sync_history import create_sync_history_record
-from app.crud.sobject_sync_status import upsert_sync_status
+from app.models.crm_object_sync_history import SObjectSyncHistory
+from app.models.crm_object_sync_status import SObjectSyncStatus
+from app.crud.crm_object_sync_history import create_sync_history_record
+from app.crud.crm_object_sync_status import upsert_sync_status
 
 
 @pytest.fixture

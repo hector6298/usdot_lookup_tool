@@ -1,11 +1,11 @@
 import pytest
 from sqlmodel import Session, create_engine, SQLModel
-from app.crud.sobject_sync_history import (
+from app.crud.crm_object_sync_history import (
     create_sync_history_record,
     get_sync_history_by_usdot,
     get_sync_history_by_org
 )
-from app.models.sobject_sync_history import SObjectSyncHistory
+from app.models.crm_object_sync_history import SObjectSyncHistory
 from datetime import datetime, timedelta
 
 

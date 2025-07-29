@@ -48,12 +48,12 @@ async def fetch_carriers(request: Request,
             legal_name=carrier.carrier_data.legal_name,
             phone=carrier.carrier_data.phone,
             mailing_address=carrier.carrier_data.mailing_address,
-            created_at=carrier.updated_at.strftime("%Y-%m-%d %H:%M:%S"),
-           
+            created_at=carrier.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+            updated_at=carrier.updated_at.strftime("%Y-%m-%d %H:%M:%S"),
             # Add sync status information
             crm_sync_status=carrier.crm_sync_status,
             crm_object_id=carrier.crm_object_id,
-            crm_synched_at=carrier.crm_synched_at.strftime("%Y-%m-%d %H:%M:%S"),
+            crm_synched_at=carrier.crm_synched_at.strftime("%Y-%m-%d %H:%M:%S") if carrier.crm_synched_at else None,
             crm_platform=carrier.crm_platform,
         )
         for carrier in carriers
