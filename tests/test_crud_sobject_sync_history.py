@@ -5,7 +5,6 @@ from app.crud.crm_object_sync_history import (
     get_sync_history_by_usdot,
     get_sync_history_by_org
 )
-from app.models.crm_object_sync_history import SObjectSyncHistory
 from datetime import datetime, timedelta
 
 

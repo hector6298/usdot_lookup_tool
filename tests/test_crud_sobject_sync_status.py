@@ -7,7 +7,6 @@ from app.crud.crm_object_sync_status import (
     get_sync_status_for_usdots,
     delete_sync_status
 )
-from app.models.crm_object_sync_status import SObjectSyncStatus
 from datetime import datetime
 
 

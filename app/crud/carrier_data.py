@@ -131,9 +131,9 @@ def save_carrier_data_bulk(db: Session,
             
             
             # Refresh all records to get the latest state
-            for carrier_record, engagement_record in zip(carrier_records, sync_records):
+            for carrier_record, sync_record in zip(carrier_records, sync_records):
                 db.refresh(carrier_record)
-                db.refresh(engagement_record)
+                db.refresh(sync_record)
 
             logger.info("✅ All carrier records saved successfully.")
             return carrier_records
