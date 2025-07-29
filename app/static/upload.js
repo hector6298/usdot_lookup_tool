@@ -153,13 +153,13 @@ const Upload = {
         }
 
         const formData = new FormData();
-        formData.append("usdot_numbers", usdotNumbers);
+        formData.append("manual_usdots", usdotNumbers);
 
         statusDiv.textContent = "Processing USDOT numbers...";
         statusDiv.style.display = "block";
 
         try {
-            const response = await fetch("/upload/manual", {
+            const response = await fetch("/upload", {
                 method: "POST",
                 body: formData,
             });

@@ -33,7 +33,7 @@ INVALID_DOT_READING = "00000000"  # Orphan record for invalid DOT readings
 
 @router.post("/upload",
              dependencies=[Depends(verify_login)])
-async def upload_file(files: list[UploadFile] = File(...), 
+async def upload_file(files: list[UploadFile] = File(None), 
                       manual_usdots: str = Form(None),
                       request: Request = None,
                       db: Session = Depends(get_db)):
@@ -50,17 +50,11 @@ async def upload_file(files: list[UploadFile] = File(...),
         logger.info("🔍 Processing manual USDOT entries.")
         manual_usdots = manual_usdots.split(',')
         for dot in manual_usdots:
-            dot = dot.strip()
-            if not re.match(r'^\d{5,8}$', dot):
-                logger.error(f"❌ Invalid manual USDOT format: {dot}")
-                invalid_files.append(dot)
-                continue
-            
-            ocr_record = OCRResultCreate(extracted_text=f"Manual entry for {dot}",
+            ocr_record = OCRResultCreate(extracted_text=dot.strip(),
                                          filename=f"manual_{dot}",
                                          user_id=user_id,
                                          org_id=org_id)
-            ocr_record = generate_dot_record(ocr_record)
+            ocr_record = generate_dot_record(ocr_record, from_text_input=True)
             ocr_records.append(ocr_record)
 
             # Check for duplicate dot_reading in current batch

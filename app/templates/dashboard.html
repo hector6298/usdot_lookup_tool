@@ -30,7 +30,7 @@
             <div class="tab-content" id="uploadTabContent">
                 <!-- Image Upload Tab -->
                 <div class="tab-pane fade show active" id="image-upload" role="tabpanel" aria-labelledby="image-tab">
-                    <p class="text-muted mb-3">Upload truck images to automatically extract USDOT numbers using AI</p>
+                    <p class="text-muted mb-3">Upload truck images to get USDOTs with AI</p>
                     <form id="upload-form" enctype="multipart/form-data">
                         <div class="mb-3">
                             <input type="file" id="file-input" class="form-control" name="files" multiple accept="image/*">
@@ -43,13 +43,11 @@
                 
                 <!-- Manual Input Tab -->
                 <div class="tab-pane fade" id="manual-input" role="tabpanel" aria-labelledby="manual-tab">
-                    <p class="text-muted mb-3">Enter USDOT numbers manually, separated by commas</p>
                     <form id="manual-form">
                         <div class="mb-3">
                             <label for="usdot-input" class="form-label">USDOT Numbers</label>
                             <textarea id="usdot-input" class="form-control" name="usdot_numbers" rows="4" 
-                                      placeholder="Enter USDOT numbers separated by commas, e.g., 123456, 789012, 345678"></textarea>
-                            <div class="form-text">Separate multiple USDOT numbers with commas. Invalid numbers will be ignored.</div>
+                                      placeholder="Enter USDOT numbers separated by commas, e.g., 123456, 789012, 345678. Invalid numbers will be ignored."></textarea>
                         </div>
                         <button type="submit" class="btn btn-primary">
                             <i class="bi bi-search"></i> Lookup & Process
