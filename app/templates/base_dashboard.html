@@ -156,19 +156,40 @@
             </div>
             <ul class="nav nav-pills flex-column m-3">
                 <li class="nav-item mb-2">
+                    <!-- Dynamic connection status -->
+                    {% if sf_status.connected %}
+                        <span class="small d-flex align-items-center">
+                            <span style="display:inline-block;width:10px;height:10px;background:#28a745;border-radius:50%;margin-right:8px;"></span>
+                            <span>Connected</span>
+                        </span>
+                    {% else %}
+                        <span class="small d-flex align-items-center">
+                            <span style="display:inline-block;width:10px;height:10px;background:#ff3b3b;border-radius:50%;margin-right:8px;"></span>
+                            <span>Disconnected</span>
+                        </span>
+                    {% endif %}
+                    
+                    <!-- Dynamic synchronized records count -->
                     <span class="small d-flex align-items-center">
-                        <span style="display:inline-block;width:10px;height:10px;background:#ff3b3b;border-radius:50%;margin-right:8px;"></span>
-                        <span>Disconnected</span>
+                        <span style="display:inline-block;width:10px;height:10px;background:#28a745;border-radius:50%;margin-right:8px;"></span>
+                        <span>{{ sf_status.sync_stats.synchronized }} records synchronized</span>
                     </span>
+                    
+                    <!-- Dynamic not synchronized records count -->
                     <span class="small d-flex align-items-center">
                         <span style="display:inline-block;width:10px;height:10px;background:#ff3b3b;border-radius:50%;margin-right:8px;"></span>
-                        <span>No records synchronized</span>
+                        <span>{{ sf_status.sync_stats.not_synchronized }} records not synchronized</span>
                     </span>
                 </li>
             </ul>
             {% if sf_connected %}
                 <div class="alert alert-success py-2 px-3 mb-2 d-flex align-items-center" style="font-size:0.95rem;">
                     <i class="bi bi-link-45deg me-2"></i> Salesforce Connected
+                </div>
+                <div class="text-center">
+                    <a href="#" onclick="disconnectSalesforce()" class="text-muted small text-decoration-none">
+                        Disconnect from Salesforce
+                    </a>
                 </div>
             {% else %}
                 <a href="/salesforce/connect" class="btn btn-outline-primary w-100 mb-2" id="connect-salesforce-btn">
@@ -220,19 +241,40 @@
                 </div>
                 <ul class="nav nav-pills flex-column m-3">
                     <li class="nav-item mb-2">
+                        <!-- Dynamic connection status -->
+                        {% if sf_status.connected %}
+                            <span class="small d-flex align-items-center">
+                                <span style="display:inline-block;width:10px;height:10px;background:#28a745;border-radius:50%;margin-right:8px;"></span>
+                                <span>Connected</span>
+                            </span>
+                        {% else %}
+                            <span class="small d-flex align-items-center">
+                                <span style="display:inline-block;width:10px;height:10px;background:#ff3b3b;border-radius:50%;margin-right:8px;"></span>
+                                <span>Disconnected</span>
+                            </span>
+                        {% endif %}
+                        
+                        <!-- Dynamic synchronized records count -->
                         <span class="small d-flex align-items-center">
-                            <span style="display:inline-block;width:10px;height:10px;background:#ff3b3b;border-radius:50%;margin-right:8px;"></span>
-                            <span>Disconnected</span>
+                            <span style="display:inline-block;width:10px;height:10px;background:#28a745;border-radius:50%;margin-right:8px;"></span>
+                            <span>{{ sf_status.sync_stats.synchronized }} records synchronized</span>
                         </span>
+                        
+                        <!-- Dynamic not synchronized records count -->
                         <span class="small d-flex align-items-center">
                             <span style="display:inline-block;width:10px;height:10px;background:#ff3b3b;border-radius:50%;margin-right:8px;"></span>
-                            <span>No records synchronized</span>
+                            <span>{{ sf_status.sync_stats.not_synchronized }} records not synchronized</span>
                         </span>
                     </li>
                 </ul>
                 {% if sf_connected %}
                     <div class="alert alert-success py-2 px-3 mb-2 d-flex align-items-center" style="font-size:0.95rem;">
                         <i class="bi bi-link-45deg me-2"></i> Salesforce Connected
+                    </div>
+                    <div class="text-center">
+                        <a href="#" onclick="disconnectSalesforce()" class="text-muted small text-decoration-none">
+                            Disconnect from Salesforce
+                        </a>
                     </div>
                 {% else %}
                     <a href="/salesforce/connect" class="btn btn-outline-primary w-100 mb-2" id="connect-salesforce-btn">
@@ -263,6 +305,7 @@
 <!-- Link to external JavaScript file -->
 <script src="/static/activity_heartbeat.js"></script>
 <script type="module" src="/static/filters_and_tables_render.js"></script>
+<script src="/static/salesforce_disconnect.js"></script>
 {% block js_scripts %}{% endblock %}
 
 <!-- Bootstrap JS -->
