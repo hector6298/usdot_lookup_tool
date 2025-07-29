@@ -47,7 +47,7 @@ const Upload = {
         const form = document.getElementById("upload-form");
         const fileInput = document.getElementById("file-input");
         const statusDiv = document.getElementById("status");
-        
+
         // default div state
         statusDiv.style.display = "none";
         statusDiv.textContent = "";
@@ -95,7 +95,7 @@ const Upload = {
                 return;
             }
         }
-
+        
         statusDiv.textContent = "Uploading images...";
         statusDiv.style.display = "block";
         try {
@@ -111,7 +111,16 @@ const Upload = {
                     location.reload();
                 }, 500);
             } else {
-                statusDiv.textContent = "❌ Upload failed.";
+                let errorMsg = "❌ Upload failed.";
+                try {
+                    const errorJson = await response.json();
+                    if (errorJson && errorJson.message) {
+                        errorMsg += ` ${errorJson.message}`;
+                    }
+                } catch {
+                    // ignore JSON parse errors, keep errorMsg as is
+                }
+                statusDiv.textContent = errorMsg;
                 statusDiv.style.display = "block";
             }
         } catch (error) {

@@ -1,19 +1,15 @@
 # Import all models here to ensure they are registered with SQLModel
 from .carrier_data import CarrierData, CarrierDataCreate
-from .engagement import CarrierEngagementStatus, CarrierChangeItem, CarrierChangeRequest, CarrierWithEngagementResponse
 from .oauth import OAuthToken
 from .ocr_results import OCRResult, OCRResultCreate, OCRResultResponse
 from .user_org_membership import UserOrgMembership, AppUser, AppOrg
-from .sobject_sync_history import SObjectSyncHistory
-from .sobject_sync_status import SObjectSyncStatus
+from .crm_object_sync_history import CRMObjectSyncHistory
+from .crm_object_sync_status import CRMObjectSyncStatus
 
 __all__ = [
     "CarrierData",
     "CarrierDataCreate", 
-    "CarrierEngagementStatus",
-    "CarrierChangeItem",
-    "CarrierChangeRequest",
-    "CarrierWithEngagementResponse",
+    "CarrierWithCRMSyncStatusResponse",
     "OAuthToken",
     "OCRResult",
     "OCRResultCreate",
@@ -21,6 +17,6 @@ __all__ = [
     "UserOrgMembership",
     "AppUser",
     "AppOrg",
-    "SObjectSyncHistory",
-    "SObjectSyncStatus",
+    "CRMObjectSyncHistory",
+    "CRMObjectSyncStatus",
 ]
