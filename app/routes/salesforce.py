@@ -3,8 +3,8 @@ from sqlmodel import Session, select
 from fastapi.responses import RedirectResponse, JSONResponse
 from app.database import get_db
 from app.crud.oauth import get_valid_salesforce_token, upsert_salesforce_token, delete_salesforce_token
-from app.crud.sobject_sync_history import create_sync_history_record
-from app.crud.sobject_sync_status import upsert_sync_status
+from app.crud.crm_object_sync_history import create_sync_history_record
+from app.crud.crm_object_sync_status import update_crm_sync_status
 from app.models.carrier_data import CarrierData
 from datetime import datetime
 import urllib.parse
@@ -230,18 +230,24 @@ async def upload_carriers_to_salesforce(
                         create_sync_history_record(
                             db=db,
                             usdot=carrier.usdot,
-                            sync_status="FAILED",
-                            sobject_type="account",
+                            crm_sync_status="FAILED",
+                            crm_object_type="account",
+                            crm_object_id=None,  # No ID since it failed
+                            crm_platform="salesforce",
+                            crm_synched_at=datetime.utcnow(),
                             user_id=user_id,
                             org_id=org_id,
                             detail=f"HTTP {resp.status_code}: {resp.text}"
                         )
-                        upsert_sync_status(
+                        update_crm_sync_status(
                             db=db,
                             usdot=carrier.usdot,
                             org_id=org_id,
                             user_id=user_id,
-                            sync_status="FAILED"
+                            crm_sync_status="FAILED",
+                            crm_object_id=None,
+                            crm_synched_at=datetime.utcnow(),
+                            crm_platform="salesforce"
                         )
                     except Exception as e:
                         logger.error(f"Failed to log sync failure for USDOT {carrier.usdot}: {str(e)}")
@@ -250,7 +256,7 @@ async def upload_carriers_to_salesforce(
         
         # Parse Salesforce response and log sync results
         sf_response = resp.json()
-        sync_timestamp = datetime.utcnow()
+        crm_synched_at = datetime.utcnow()
         
         logger.info(f"Salesforce response: {sf_response}")
         
@@ -280,19 +286,24 @@ async def upload_carriers_to_salesforce(
                         create_sync_history_record(
                             db=db,
                             usdot=carrier.usdot,
-                            sync_status="FAILED",
-                            sobject_type="account",
+                            crm_sync_status="FAILED",
+                            crm_object_type="account",
+                            crm_object_id=None,  # No ID since it failed
+                            crm_platform="salesforce",
                             user_id=user_id,
                             org_id=org_id,
                             detail=detail,
-                            sync_timestamp=sync_timestamp
+                            crm_synched_at=crm_synched_at
                         )
-                        upsert_sync_status(
+                        update_crm_sync_status(
                             db=db,
                             usdot=carrier.usdot,
                             org_id=org_id,
                             user_id=user_id,
-                            sync_status="FAILED"
+                            crm_sync_status="FAILED",
+                            crm_object_id=None,
+                            crm_synched_at=crm_synched_at,
+                            crm_platform="salesforce"
                         )
                         logger.info(f"Logged failed sync for USDOT {carrier.usdot}: {detail}")
                     except Exception as e:
@@ -306,21 +317,24 @@ async def upload_carriers_to_salesforce(
                         create_sync_history_record(
                             db=db,
                             usdot=carrier.usdot,
-                            sync_status="SUCCESS",
-                            sobject_type="account",
+                            crm_sync_status="SUCCESS",
+                            crm_object_type="account",
+                            crm_platform="salesforce",
+                            crm_object_id=salesforce_id,
+                            crm_synched_at=crm_synched_at,
                             user_id=user_id,
                             org_id=org_id,
-                            sobject_id=salesforce_id,
                             detail=f"Successfully created Account with ID: {salesforce_id}",
-                            sync_timestamp=sync_timestamp
                         )
-                        upsert_sync_status(
+                        update_crm_sync_status(
                             db=db,
                             usdot=carrier.usdot,
                             org_id=org_id,
                             user_id=user_id,
-                            sync_status="SUCCESS",
-                            sobject_id=salesforce_id
+                            crm_sync_status="SUCCESS",
+                            crm_object_id=salesforce_id,
+                            crm_synched_at=crm_synched_at,
+                            crm_platform="salesforce"
                         )
                         logger.info(f"Logged successful sync for USDOT {carrier.usdot} -> Salesforce ID: {salesforce_id}")
                     except Exception as e:
@@ -343,21 +357,24 @@ async def upload_carriers_to_salesforce(
                         create_sync_history_record(
                             db=db,
                             usdot=carrier.usdot,
-                            sync_status="SUCCESS",
-                            sobject_type="account",
+                            crm_sync_status="SUCCESS",
+                            crm_object_type="account",
+                            crm_platform="salesforce",
+                            crm_object_id=salesforce_id,
+                            crm_synched_at=crm_synched_at,
                             user_id=user_id,
                             org_id=org_id,
-                            sobject_id=salesforce_id,
                             detail=f"Successfully created Account with ID: {salesforce_id}",
-                            sync_timestamp=sync_timestamp
                         )
-                        upsert_sync_status(
+                        update_crm_sync_status(
                             db=db,
                             usdot=carrier.usdot,
                             org_id=org_id,
                             user_id=user_id,
-                            sync_status="SUCCESS",
-                            sobject_id=salesforce_id
+                            crm_sync_status="SUCCESS",
+                            crm_object_id=salesforce_id,
+                            crm_synched_at=crm_synched_at,
+                            crm_platform="salesforce"
                         )
                         logger.info(f"Logged successful sync for USDOT {carrier.usdot} -> Salesforce ID: {salesforce_id}")
                     except Exception as e:

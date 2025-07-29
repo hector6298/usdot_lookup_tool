@@ -1,13 +1,12 @@
 import pytest
 from sqlmodel import Session, create_engine, SQLModel
-from app.crud.sobject_sync_status import (
+from app.crud.crm_object_sync_status import (
     upsert_sync_status,
     get_sync_status_by_usdot,
     get_sync_status_by_org,
     get_sync_status_for_usdots,
     delete_sync_status
 )
-from app.models.sobject_sync_status import SObjectSyncStatus
 from datetime import datetime
 
 
