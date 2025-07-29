@@ -34,7 +34,6 @@ INVALID_DOT_READING = "00000000"  # Orphan record for invalid DOT readings
 @router.post("/upload",
              dependencies=[Depends(verify_login)])
 async def upload_file(files: list[UploadFile] = File(...), 
-                      manual_flag: bool = Form(False),
                       manual_usdots: str = Form(None),
                       request: Request = None,
                       db: Session = Depends(get_db)):
@@ -47,7 +46,7 @@ async def upload_file(files: list[UploadFile] = File(...),
                 if 'org_id' in request.session['userinfo'] else user_id)
     
     # Process manual USDOT entries
-    if manual_flag and manual_usdots:
+    if manual_usdots:
         logger.info("🔍 Processing manual USDOT entries.")
         manual_usdots = manual_usdots.split(',')
         for dot in manual_usdots:
@@ -74,7 +73,7 @@ async def upload_file(files: list[UploadFile] = File(...),
             logger.info(f"✅ Manual USDOT {dot} processed successfully.")
     
     # Process uploaded files
-    else:
+    if files:
         logger.info("🔍 Processing uploaded files.")
         for file in files:
             try:
