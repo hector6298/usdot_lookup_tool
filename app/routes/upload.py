@@ -61,7 +61,7 @@ async def upload_file(files: list[UploadFile] = File(...),
 
             # Check for duplicate dot_reading in current batch
             if ocr_record.dot_reading in unique_dot_readings:
-                logger.warning(f"⚠️ Duplicate USDOT {ocr_record.dot_reading} found in batch, ignoring due to ignore_duplicated_usdot flag.")
+                logger.warning(f"⚠️ Duplicate USDOT {ocr_record.dot_reading} found in batch, ignoring.")
             else:
                 unique_dot_readings.add(ocr_record.dot_reading)
 
