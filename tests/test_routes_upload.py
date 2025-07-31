@@ -6,7 +6,7 @@ from unittest.mock import Mock, patch, AsyncMock
 from fastapi import HTTPException, UploadFile
 from fastapi.responses import JSONResponse
 
-from app.routes.upload import upload_file
+from app.routes.upload import upload_file, upload_manual_usdots
 
 
 class TestUploadFile:

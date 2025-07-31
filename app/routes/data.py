@@ -26,7 +26,8 @@ logger = logging.getLogger(__name__)
 async def fetch_carriers(request: Request,
                     offset: int = 0,
                     limit: int = 10,
-                    crm_sync_status: bool = None,
+                    crm_sync_status: str = None,
+                    usdot_filter: str = None,
                     db: Session = Depends(get_db)):
 
     """Return carrier results as JSON for the dashboard."""
@@ -40,6 +41,7 @@ async def fetch_carriers(request: Request,
                                 org_id=org_id,
                                 offset=offset,
                                 crm_sync_status=crm_sync_status,
+                                usdot_filter=usdot_filter,
                                 limit=limit)
     
     results = [

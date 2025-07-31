@@ -9,12 +9,13 @@ logger = logging.getLogger(__name__)
 
 def get_crm_sync_data(
     db: Session,
-    org_id: str= None,
+    org_id: str = None,
     offset: int = None,
     limit: int = None,
-    crm_sync_status: Optional[str] = None
+    crm_sync_status: Optional[str] = None,
+    usdot_filter: Optional[str] = None
 ) -> List[CRMObjectSyncStatus]:
-    """Get all sync status records for an org, optionally filtered by status."""
+    """Get all sync status records for an org, optionally filtered by status and USDOT."""
     try:
         query = select(CRMObjectSyncStatus)
 
@@ -25,6 +26,11 @@ def get_crm_sync_data(
         if crm_sync_status:
             query = query.where(CRMObjectSyncStatus.crm_sync_status == crm_sync_status)
             logger.info(f"🔍 Filtering CRM sync data by sync status: {crm_sync_status}")
+
+        if usdot_filter:
+            # usdot_filter can be a partial match or a full match
+            query = query.where(CRMObjectSyncStatus.usdot.like(f"%{usdot_filter}%"))
+            logger.info(f"🔍 Filtering CRM sync data by USDOT filter: {usdot_filter}")
         
         # Order by timestamp descending (newest first)
         query = query.order_by(CRMObjectSyncStatus.created_at.desc())

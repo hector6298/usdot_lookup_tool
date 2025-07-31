@@ -9,37 +9,55 @@
         <div class="card p-4 shadow-sm">
             <h4>
                 <i class="bi bi-cloud-arrow-up" style="color:#4f8cff"></i>
-                Upload to scan your truck images
+                USDOT Lookup Tool
             </h4>
-            <form id="upload-form" enctype="multipart/form-data">
-                <div class="mb-3">
-                    <input type="file" id="file-input" class="form-control" name="files" multiple accept="image/*">
+            
+            <!-- Tab Navigation -->
+            <ul class="nav nav-tabs mb-3" id="uploadTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="image-tab" data-bs-toggle="tab" data-bs-target="#image-upload" type="button" role="tab" aria-controls="image-upload" aria-selected="true">
+                        <i class="bi bi-camera"></i> Upload Images
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="manual-tab" data-bs-toggle="tab" data-bs-target="#manual-input" type="button" role="tab" aria-controls="manual-input" aria-selected="false">
+                        <i class="bi bi-keyboard"></i> Manual Input
+                    </button>
+                </li>
+            </ul>
+            
+            <!-- Tab Content -->
+            <div class="tab-content" id="uploadTabContent">
+                <!-- Image Upload Tab -->
+                <div class="tab-pane fade show active" id="image-upload" role="tabpanel" aria-labelledby="image-tab">
+                    <p class="text-muted mb-3">Upload truck images to get USDOTs with AI</p>
+                    <form id="upload-form" enctype="multipart/form-data">
+                        <div class="mb-3">
+                            <input type="file" id="file-input" class="form-control" name="files" multiple accept="image/*">
+                        </div>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-upload"></i> Upload & Process
+                        </button>
+                    </form>
                 </div>
-                <button type="submit" class="btn btn-primary me-3">
-                    <i class="bi bi-upload"></i> Upload
-                </button>
-            </form>
+                
+                <!-- Manual Input Tab -->
+                <div class="tab-pane fade" id="manual-input" role="tabpanel" aria-labelledby="manual-tab">
+                    <form id="manual-form">
+                        <div class="mb-3">
+                            <label for="usdot-input" class="form-label">USDOT Numbers</label>
+                            <textarea id="usdot-input" class="form-control" name="usdot_numbers" rows="4" 
+                                      placeholder="Enter USDOT numbers separated by commas, e.g., 123456, 789012, 345678. Invalid numbers will be ignored."></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-search"></i> Lookup & Process
+                        </button>
+                    </form>
+                </div>
+            </div>
         </div>
     <div id="status" style="margin-top: 20px;"></div>
-    {% if result_texts %}
-    <div class="card mt-4 p-4 shadow-sm">
-        <h4>Extracted Texts:</h4>
-        {% for text in result_texts %}
-        <textarea class="form-control mb-3" rows="5" readonly>{{ text }}</textarea>
-        {% endfor %}
-    </div>
-    {% endif %}
 
-    {% if usdots %}
-    <div class="alert alert-success mt-4">
-        <h5>DOT Numbers Found!</h5>
-        <ul>
-            {% for dot in usdots %}
-            <li>{{ dot }}</li>
-            {% endfor %}
-        </ul>
-    </div>
-    {% endif %}
 
     <!-- Table Results section -->
     <div class="card mt-4 p-4 shadow-sm">
@@ -47,30 +65,21 @@
         <h4>USDOT Number Records</h4>
 
         <!-- Table filters -->
-        <form id="filter-form" class="mb-4" data-dashboard-type="{{ dashboard_type }}">
-            <div class="row">
-                <div class="col-md-4">
-                    <label for="legal_name" class="form-label">Legal Name</label>
-                    <input type="text" id="legal_name" name="legal_name" class="form-control" placeholder="Enter legal name">
-                </div>
-                <div class="col-md-4">
-                    <label for="carrier_interested" class="form-label">Carrier Interested</label>
-                    <select id="carrier_interested" name="carrier_interested" class="form-select">
-                        <option value="">All</option>
-                        <option value="true">Yes</option>
-                        <option value="false">No</option>
-                    </select>
-                </div>
-                <div class="col-md-4">
-                    <label for="client_contacted" class="form-label">Client Contacted</label>
-                    <select id="client_contacted" name="client_contacted" class="form-select">
-                        <option value="">All</option>
-                        <option value="true">Yes</option>
-                        <option value="false">No</option>
-                    </select>
-                </div>
+        <form id="filter-form" class="mb-4 row g-3" data-dashboard-type="{{ dashboard_type }}">
+            <div class="col-12 col-md-4">
+            <input type="text" id="usdot_filter" name="usdot_filter" class="form-control" placeholder="USDOT Number">
             </div>
-            <button type="submit" class="btn btn-primary mt-3">Apply Filters</button>
+            <div class="col-12 col-md-5">
+            <select id="crm_sync_status" name="crm_sync_status" class="form-select">
+                <option value="">All CRM Sync Status</option>
+                <option value="SUCCESS">Success</option>
+                <option value="FAILED">Failed</option>
+                <option value="PENDING">Pending</option>
+            </select>
+            </div>
+            <div class="col-12 col-md-3">
+            <button type="submit" class="btn btn-primary w-100">Apply Filters</button>
+            </div>
         </form>
 
         <!-- Table Results dynamically loaded using js -->

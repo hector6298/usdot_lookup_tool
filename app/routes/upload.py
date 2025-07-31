@@ -1,9 +1,11 @@
 import os
 import logging
-from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, Request
+import re
+from datetime import datetime
+from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, Request, Form
 from sqlmodel import Session
 from app.database import get_db
-from app.models.ocr_results import OCRResultCreate
+from app.models.ocr_results import OCRResultCreate, OCRResult
 from app.crud.ocr_results import save_ocr_results_bulk
 from app.crud.carrier_data import save_carrier_data_bulk
 from app.helpers.ocr import cloud_ocr_from_image_file, generate_dot_record
@@ -31,44 +33,82 @@ INVALID_DOT_READING = "00000000"  # Orphan record for invalid DOT readings
 
 @router.post("/upload",
              dependencies=[Depends(verify_login)])
-async def upload_file(files: list[UploadFile] = File(...), 
+async def upload_file(files: list[UploadFile] = File(None), 
+                      manual_usdots: str = Form(None),
                       request: Request = None,
                       db: Session = Depends(get_db)):
     ocr_records = []  # Store OCR results before batch insert
     unique_dot_readings = set()  # Track unique DOT readings
     valid_files = []
     invalid_files = []
+
     user_id = request.session['userinfo']['sub']
     org_id = (request.session['userinfo']['org_id'] 
                 if 'org_id' in request.session['userinfo'] else user_id)
     
-    for file in files:
-        try:
-            # Validate file type
-            supported_types = ('.png', '.jpg', '.jpeg', '.bmp', '.heic', '.heif')
-            if not file.filename.lower().endswith(supported_types):
-                logger.error(f"❌ Invalid file type. Only image files {supported_types} are allowed.")
-                invalid_files.append(file.filename)
-                continue         
-               
-            # perform OCR on image
-            ocr_text = await cloud_ocr_from_image_file(vision_client, file)
-            ocr_record = OCRResultCreate(extracted_text=ocr_text, 
-                                         filename=file.filename,
+    # Process manual USDOT entries
+    if manual_usdots:
+        logger.info("🔍 Processing manual USDOT entries.")
+        manual_usdots = manual_usdots.split(',')
+        for dot in manual_usdots:
+            ocr_record = OCRResultCreate(extracted_text=dot.strip(),
+                                         filename=f"manual_{dot}",
                                          user_id=user_id,
                                          org_id=org_id)
-            ocr_record = generate_dot_record(ocr_record)
+            ocr_record = generate_dot_record(ocr_record, from_text_input=True)
+            ocr_records.append(ocr_record)
 
             # Check for duplicate dot_reading in current batch
             if ocr_record.dot_reading in unique_dot_readings:
-                logger.warning(f"⚠️ Duplicate USDOT {ocr_record.dot_reading} found in batch, ignoring.")
+                logger.warning(f"⚠️ Duplicate manual USDOT {ocr_record.dot_reading} found, ignoring.")
+            
+            # Check if the extracted DOT reading is valid, if valid add to unique set
+            if ocr_record.dot_reading == INVALID_DOT_READING:
+                invalid_files.append(f"manual_{dot}")
+                logger.warning(f"⚠️ Invalid manual USDOT {dot.strip()} ignored.")
             else:
+                valid_files.append(f"manual_{dot}")
+                logger.info(f"✅ Valid manual USDOT {dot.strip()} processed.")
                 unique_dot_readings.add(ocr_record.dot_reading)
+    
+    # Process uploaded files
+    if files:
+        logger.info("🔍 Processing uploaded files.")
+        for file in files:
+            try:
+                # Validate file type
+                supported_types = ('.png', '.jpg', '.jpeg', '.bmp', '.heic', '.heif')
+                if not file.filename.lower().endswith(supported_types):
+                    logger.error(f"❌ Invalid file type. Only image files {supported_types} are allowed.")
+                    invalid_files.append(file.filename)
+                    continue         
+                
+                # perform OCR on image
+                ocr_text = await cloud_ocr_from_image_file(vision_client, file)
+                ocr_record = OCRResultCreate(extracted_text=ocr_text, 
+                                            filename=file.filename,
+                                            user_id=user_id,
+                                            org_id=org_id)
+                ocr_record = generate_dot_record(ocr_record)
 
-            ocr_records.append(ocr_record)
-            valid_files.append(file.filename)
-        except Exception as e:
-            logger.exception(f"❌ Error processing file: {e}")
+                # Check for duplicate dot_reading in current batch
+                if ocr_record.dot_reading in unique_dot_readings:
+                    logger.warning(f"⚠️ Duplicate USDOT {ocr_record.dot_reading} found in batch, ignoring.")
+                
+                unique_dot_readings.add(ocr_record.dot_reading)
+                ocr_records.append(ocr_record)
+
+                # Check if the extracted DOT reading is valid
+                if ocr_record.dot_reading != INVALID_DOT_READING:
+                    valid_files.append(file.filename)
+                    logger.info(f"✅ File {file.filename} Added to valid files with DOT {ocr_record.dot_reading}.")
+                else:
+                    logger.warning(f"⚠️ No valid DOT number found in {file.filename}, added to invalid files.")
+                    invalid_files.append(file.filename)
+
+            except Exception as e:
+                logger.exception(f"❌ Error processing file: {e}")
+                invalid_files.append(file.filename)
     
     if not ocr_records:
         raise HTTPException(status_code=400, detail="No valid files were processed.")
@@ -97,7 +137,13 @@ async def upload_file(files: list[UploadFile] = File(...),
 
     # Collect all OCR result IDs
     ocr_result_ids = [
-        {"id": result.id, "dot_reading": result.dot_reading}
+        {
+            "id": result.id, 
+            "dot_reading": result.dot_reading, 
+            "filename": result.filename, 
+            "safer_lookup_success": (True if result.carrier_data 
+                and result.carrier_data.usdot != INVALID_DOT_READING else False)
+        }
         for result in ocr_results
     ]
     
@@ -105,7 +151,7 @@ async def upload_file(files: list[UploadFile] = File(...),
     return JSONResponse(
         content={
             "message": "Processing complete",
-            "result_ids": ocr_result_ids,
+            "records": ocr_result_ids,
             "valid_files": valid_files,
             "invalid_files": invalid_files
         },
