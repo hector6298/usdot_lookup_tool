@@ -41,6 +41,7 @@ async def upload_file(files: list[UploadFile] = File(None),
     unique_dot_readings = set()  # Track unique DOT readings
     valid_files = []
     invalid_files = []
+
     user_id = request.session['userinfo']['sub']
     org_id = (request.session['userinfo']['org_id'] 
                 if 'org_id' in request.session['userinfo'] else user_id)
@@ -61,10 +62,14 @@ async def upload_file(files: list[UploadFile] = File(None),
             if ocr_record.dot_reading in unique_dot_readings:
                 logger.warning(f"⚠️ Duplicate manual USDOT {ocr_record.dot_reading} found, ignoring.")
             
-            unique_dot_readings.add(ocr_record.dot_reading)
-
-            valid_files.append(f"manual_{dot}")
-            logger.info(f"✅ Manual USDOT {dot} processed successfully.")
+            # Check if the extracted DOT reading is valid, if valid add to unique set
+            if ocr_record.dot_reading == INVALID_DOT_READING:
+                invalid_files.append(f"manual_{dot}")
+                logger.warning(f"⚠️ Invalid manual USDOT {dot.strip()} ignored.")
+            else:
+                valid_files.append(f"manual_{dot}")
+                logger.info(f"✅ Valid manual USDOT {dot.strip()} processed.")
+                unique_dot_readings.add(ocr_record.dot_reading)
     
     # Process uploaded files
     if files:
@@ -89,13 +94,21 @@ async def upload_file(files: list[UploadFile] = File(None),
                 # Check for duplicate dot_reading in current batch
                 if ocr_record.dot_reading in unique_dot_readings:
                     logger.warning(f"⚠️ Duplicate USDOT {ocr_record.dot_reading} found in batch, ignoring.")
-                    
+                
                 unique_dot_readings.add(ocr_record.dot_reading)
-
                 ocr_records.append(ocr_record)
-                valid_files.append(file.filename)
+
+                # Check if the extracted DOT reading is valid
+                if ocr_record.dot_reading != INVALID_DOT_READING:
+                    valid_files.append(file.filename)
+                    logger.info(f"✅ File {file.filename} Added to valid files with DOT {ocr_record.dot_reading}.")
+                else:
+                    logger.warning(f"⚠️ No valid DOT number found in {file.filename}, added to invalid files.")
+                    invalid_files.append(file.filename)
+
             except Exception as e:
                 logger.exception(f"❌ Error processing file: {e}")
+                invalid_files.append(file.filename)
     
     if not ocr_records:
         raise HTTPException(status_code=400, detail="No valid files were processed.")
@@ -124,7 +137,13 @@ async def upload_file(files: list[UploadFile] = File(None),
 
     # Collect all OCR result IDs
     ocr_result_ids = [
-        {"id": result.id, "dot_reading": result.dot_reading}
+        {
+            "id": result.id, 
+            "dot_reading": result.dot_reading, 
+            "filename": result.filename, 
+            "safer_lookup_success": (True if result.carrier_data 
+                and result.carrier_data.usdot != INVALID_DOT_READING else False)
+        }
         for result in ocr_results
     ]
     
@@ -132,7 +151,7 @@ async def upload_file(files: list[UploadFile] = File(None),
     return JSONResponse(
         content={
             "message": "Processing complete",
-            "result_ids": ocr_result_ids,
+            "records": ocr_result_ids,
             "valid_files": valid_files,
             "invalid_files": invalid_files
         },

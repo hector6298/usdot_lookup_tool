@@ -39,7 +39,7 @@ def generate_dot_record(ocr_result: OCRResultCreate, from_text_input=False) -> O
         # Extract the 10-digit number following "DOT"
         if from_text_input:
             logger.info("🔍 Extracting DOT number from manual text input.")
-            regex_pattern = r'^\d{5,8}$'
+            regex_pattern = r'^(\d{5,8})$'
         else:
             logger.info("🔍 Extracting DOT number from OCR result.")
             regex_pattern = r'\b(?:US\s*DOT|USDOT|DOT)[\s#-]*?(\d{5,8})\b'
