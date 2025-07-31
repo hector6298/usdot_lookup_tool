@@ -3,7 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Get Your Leads Using AI Vision</title>
+    <title>USDOT Number Lookup Tool - Automated Lead Capture with FMCSA SAFER Web Integration</title>
+    <meta name="description" content="Automated USDOT number lookup tool with OCR technology. Streamline your lead capture pipeline with Federal Motor Carrier Safety Administration (FMCSA) SAFER web lookups, Salesforce integration, and zero data entry CRM automation.">
+    <meta name="keywords" content="USDOT number, Federal Motor Carrier Safety Administration, FMCSA, SAFER web lookups, Salesforce integration, CRM integration, automated data sync, zero data entry, lead capture automation, trucking leads, carrier data">
+    <meta name="author" content="USDOT Lookup Tool">
+    <meta property="og:title" content="USDOT Number Lookup Tool - Automated Lead Capture">
+    <meta property="og:description" content="Revolutionize your trucking lead capture with automated OCR, FMCSA SAFER web lookups, and seamless CRM integration. Reduce manual data entry and speed up your sales pipeline.">
+    <meta property="og:type" content="website">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="/">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
@@ -24,7 +32,7 @@
             border-radius: 18px;
             box-shadow: 0 8px 32px rgba(44,62,80,0.12);
             width: 90%;
-            max-width: 520px;
+            max-width: 680px;
         }
         .logo-img {
             width: 120px;
@@ -75,6 +83,60 @@
             filter: brightness(0.95);
             box-shadow: 0 4px 16px rgba(44,62,80,0.12);
         }
+        
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 24px;
+            margin: 32px 0;
+            text-align: center;
+        }
+        
+        .feature {
+            padding: 20px 16px;
+        }
+        
+        .feature i {
+            font-size: 2.5rem;
+            color: #4CAF50;
+            margin-bottom: 12px;
+        }
+        
+        .feature h3 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #23233a;
+            margin-bottom: 8px;
+        }
+        
+        .feature p {
+            font-size: 0.9rem;
+            color: #666;
+            line-height: 1.4;
+            margin: 0;
+        }
+        
+        .blog-section {
+            margin-top: 32px;
+            padding-top: 24px;
+            border-top: 1px solid #eee;
+        }
+        
+        .blog-section h3 {
+            font-size: 1.2rem;
+            color: #23233a;
+            margin-bottom: 8px;
+        }
+        
+        .blog-link {
+            color: #2196F3;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        
+        .blog-link:hover {
+            text-decoration: underline;
+        }
         @media (max-width: 600px) {
             .container {
                 padding: 24px 8px 24px 8px;
@@ -86,19 +148,50 @@
             h1 {
                 font-size: 1.3rem;
             }
+            .features {
+                grid-template-columns: 1fr;
+                gap: 16px;
+                margin: 24px 0;
+            }
+            .feature i {
+                font-size: 2rem;
+            }
         }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <img src="/static/logo/app_logo2.jpg" alt="Logo" class="logo-img">
-    <h1>Get your leads using AI vision</h1>
-    <h2>Upload your photos where the USDOT number is visible and watch the magic happen</h2>
+    <img src="/static/logo/app_logo2.jpg" alt="USDOT Lookup Tool Logo" class="logo-img">
+    <h1>Automated USDOT Number Lookup & Lead Capture</h1>
+    <h2>Transform your trucking lead pipeline with AI-powered OCR, FMCSA SAFER web integration, and automated CRM sync</h2>
+    
+    <div class="features">
+        <div class="feature">
+            <i class="fas fa-camera"></i>
+            <h3>OCR Technology</h3>
+            <p>Upload truck images and automatically extract USDOT numbers with advanced computer vision</p>
+        </div>
+        <div class="feature">
+            <i class="fas fa-search"></i>
+            <h3>SAFER Web Lookups</h3>
+            <p>Instant Federal Motor Carrier Safety Administration (FMCSA) data retrieval</p>
+        </div>
+        <div class="feature">
+            <i class="fas fa-sync-alt"></i>
+            <h3>CRM Integration</h3>
+            <p>Seamless Salesforce integration with automated data sync and zero manual data entry</p>
+        </div>
+    </div>
 
     <div class="btn-container">
         <a href="/login" class="btn login"><i class="fas fa-sign-in-alt"></i> Login</a>
         <a href="/signup" class="btn signup"><i class="fas fa-user-plus"></i> Sign Up</a>
+    </div>
+    
+    <div class="blog-section">
+        <h3>Learn More</h3>
+        <p><a href="/blog" class="blog-link">Read our blog</a> to discover how automated lead capture can revolutionize your trucking business pipeline</p>
     </div>
 </div>
 
