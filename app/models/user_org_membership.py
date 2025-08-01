@@ -5,6 +5,7 @@ from sqlmodel import Relationship
 if TYPE_CHECKING:
     from app.models.ocr_results import OCRResult
     from app.models.crm_object_sync_status import CRMObjectSyncStatus
+    from app.models.subscription import Subscription, UsageQuota, OneTimePayment
 
 class AppUser(SQLModel, table=True):
     """Represents an application user in the database."""
@@ -18,6 +19,9 @@ class AppUser(SQLModel, table=True):
     ocr_results: List["OCRResult"] = Relationship(back_populates="app_user")
     crm_object_sync_status_usr: List["CRMObjectSyncStatus"] = Relationship(back_populates="app_user")
     user_org_membership: List["UserOrgMembership"] = Relationship(back_populates="app_user")
+    subscriptions: List["Subscription"] = Relationship(back_populates="app_user")
+    usage_quotas: List["UsageQuota"] = Relationship(back_populates="app_user")
+    one_time_payments: List["OneTimePayment"] = Relationship(back_populates="app_user")
 
 class AppOrg(SQLModel, table=True):
     """Represents an organization in the database."""
@@ -28,6 +32,9 @@ class AppOrg(SQLModel, table=True):
     user_org_membership: List["UserOrgMembership"] = Relationship(back_populates="app_org")
     crm_object_sync_status_org: List["CRMObjectSyncStatus"] = Relationship(back_populates="app_org")
     ocr_results: List["OCRResult"] = Relationship(back_populates="app_org")
+    subscriptions: List["Subscription"] = Relationship(back_populates="app_org")
+    usage_quotas: List["UsageQuota"] = Relationship(back_populates="app_org")
+    one_time_payments: List["OneTimePayment"] = Relationship(back_populates="app_org")
 
 class UserOrgMembership(SQLModel, table=True):
     """Represents a user's membership in an organization."""

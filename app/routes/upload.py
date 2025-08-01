@@ -8,6 +8,7 @@ from app.database import get_db
 from app.models.ocr_results import OCRResultCreate, OCRResult
 from app.crud.ocr_results import save_ocr_results_bulk
 from app.crud.carrier_data import save_carrier_data_bulk
+from app.crud.subscription import get_current_usage_quota, use_quota
 from app.helpers.ocr import cloud_ocr_from_image_file, generate_dot_record
 from app.helpers.safer_web import safer_web_lookup_from_dot
 from app.routes.auth import verify_login
@@ -45,6 +46,37 @@ async def upload_file(files: list[UploadFile] = File(None),
     user_id = request.session['userinfo']['sub']
     org_id = (request.session['userinfo']['org_id'] 
                 if 'org_id' in request.session['userinfo'] else user_id)
+    
+    # Calculate total operations needed
+    total_operations = 0
+    if manual_usdots:
+        total_operations += len(manual_usdots.split(','))
+    if files:
+        total_operations += len(files)
+    
+    # Check quota before processing
+    current_quota = get_current_usage_quota(db, user_id, org_id)
+    if current_quota and current_quota.quota_remaining < total_operations:
+        raise HTTPException(
+            status_code=403, 
+            detail={
+                "error": "quota_exceeded",
+                "message": f"Insufficient quota. You need {total_operations} operations but only have {current_quota.quota_remaining} remaining.",
+                "quota_remaining": current_quota.quota_remaining,
+                "quota_needed": total_operations
+            }
+        )
+    elif not current_quota:
+        # No subscription found, check if user should get free tier
+        logger.warning(f"No quota found for user {user_id}, org {org_id}. User may need to set up subscription.")
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "error": "no_subscription",
+                "message": "No active subscription found. Please subscribe to a plan to continue.",
+                "quota_needed": total_operations
+            }
+        )
     
     # Process manual USDOT entries
     if manual_usdots:
@@ -134,6 +166,12 @@ async def upload_file(files: list[UploadFile] = File(None),
         # Save to database using schema
         ocr_results = save_ocr_results_bulk(db, ocr_records)       
         logger.info(f"✅ Processed {len(ocr_results)} OCR results, {safer_lookups} carrier records saved.")
+        
+        # Update quota usage after successful processing
+        operations_used = len(ocr_results)
+        quota_used = use_quota(db, user_id, org_id, operations_used)
+        if not quota_used:
+            logger.warning(f"Failed to update quota usage for user {user_id}, org {org_id}")
 
     # Collect all OCR result IDs
     ocr_result_ids = [
@@ -147,13 +185,22 @@ async def upload_file(files: list[UploadFile] = File(None),
         for result in ocr_results
     ]
     
+    # Get updated quota information
+    updated_quota = get_current_usage_quota(db, user_id, org_id)
+    quota_info = {
+        "quota_used": updated_quota.quota_used if updated_quota else 0,
+        "quota_remaining": updated_quota.quota_remaining if updated_quota else 0,
+        "quota_limit": updated_quota.quota_limit if updated_quota else 0
+    }
+    
     # Redirect to home with all OCR result IDs
     return JSONResponse(
         content={
             "message": "Processing complete",
             "records": ocr_result_ids,
             "valid_files": valid_files,
-            "invalid_files": invalid_files
+            "invalid_files": invalid_files,
+            "quota_info": quota_info
         },
         status_code=200
     )

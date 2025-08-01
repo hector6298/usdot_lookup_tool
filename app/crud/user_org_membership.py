@@ -63,6 +63,34 @@ def save_user_org_membership(db: Session, login_info) -> AppUser:
         db.refresh(membership_record)
 
         logger.info(f"✅ User {user_record.user_id}, Org {org_record.org_id}, and memberships saved.")
+        
+        # Create free subscription for new users
+        try:
+            from app.crud.subscription import get_user_subscription, create_subscription, get_subscription_plans
+            from app.models.subscription import SubscriptionCreate
+            
+            # Check if user already has a subscription
+            existing_subscription = get_user_subscription(db, user_record.user_id, org_record.org_id)
+            if not existing_subscription:
+                # Get free plan (assuming plan ID 1 is free)
+                plans = get_subscription_plans(db)
+                free_plan = next((p for p in plans if p.price_cents == 0), None)
+                
+                if free_plan:
+                    subscription_data = SubscriptionCreate(
+                        user_id=user_record.user_id,
+                        org_id=org_record.org_id,
+                        plan_id=free_plan.id
+                    )
+                    create_subscription(db, subscription_data)
+                    logger.info(f"✅ Created free subscription for user {user_record.user_id}")
+                else:
+                    logger.warning("No free plan found to assign to new user")
+        except Exception as e:
+            logger.error(f"Warning: Failed to create free subscription for user {user_record.user_id}: {e}")
+            # Don't fail the entire user creation process if subscription creation fails
+        
+        return user_record
     except Exception as e:
         logger.error(f"❌ Error saving User, Org, Membership: {e}")
         db.rollback()
