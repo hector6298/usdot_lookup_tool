@@ -9,12 +9,12 @@ from sqlmodel import Session
 from app.database import get_db
 from app.routes.auth import verify_login
 from app.models.subscription import (
-    SubscriptionPlan, Subscription,
     SubscriptionCreate, SubscriptionResponse, UsageResponse
 )
 from app.crud.subscription import (
-    get_subscription_plans, get_user_subscription, create_subscription,
-    get_current_usage_from_stripe, initialize_default_plans
+    get_active_subscription_plans, get_user_subscription_mapping,
+    create_subscription_mapping, get_current_usage_from_stripe,
+    get_subscription_details_from_stripe
 )
 
 # Set up logging
@@ -46,17 +46,12 @@ async def subscription_page(
     )
 
 
-@router.get("/plans", response_model=list[SubscriptionPlan])
-async def get_plans(db: Session = Depends(get_db)):
-    """Get all available subscription plans."""
+@router.get("/plans")
+async def get_plans():
+    """Get all available subscription plans from Stripe."""
     try:
-        # Initialize default plans if none exist
-        plans = get_subscription_plans(db)
-        if not plans:
-            initialize_default_plans(db)
-            plans = get_subscription_plans(db)
-        
-        return plans
+        plans = get_active_subscription_plans()
+        return {"plans": plans}
     except Exception as e:
         logger.error(f"Error fetching plans: {e}")
         raise HTTPException(status_code=500, detail="Failed to fetch subscription plans")
@@ -68,13 +63,23 @@ async def get_current_subscription(
     db: Session = Depends(get_db),
     _: dict = Depends(verify_login)
 ):
-    """Get current user's subscription."""
+    """Get current user's subscription from Stripe."""
     try:
         user_id = request.session['userinfo']['sub']
         org_id = request.session['userinfo'].get('org_id', user_id)
         
-        subscription = get_user_subscription(db, user_id, org_id)
-        return subscription
+        # Get subscription mapping
+        mapping = get_user_subscription_mapping(db, user_id, org_id)
+        if not mapping:
+            return None
+        
+        # Get subscription details from Stripe
+        subscription_details = get_subscription_details_from_stripe(mapping)
+        if not subscription_details:
+            return None
+        
+        return SubscriptionResponse(**subscription_details)
+        
     except Exception as e:
         logger.error(f"Error fetching subscription: {e}")
         raise HTTPException(status_code=500, detail="Failed to fetch subscription")
@@ -91,39 +96,50 @@ async def get_current_usage(
         user_id = request.session['userinfo']['sub']
         org_id = request.session['userinfo'].get('org_id', user_id)
         
-        subscription = get_user_subscription(db, user_id, org_id)
-        if not subscription:
+        # Get subscription mapping
+        mapping = get_user_subscription_mapping(db, user_id, org_id)
+        if not mapping:
             return None
         
-        usage_data = get_current_usage_from_stripe(subscription)
-        return usage_data
+        # Get usage data from Stripe
+        usage_data = get_current_usage_from_stripe(mapping)
+        if not usage_data:
+            return None
+        
+        return UsageResponse(**usage_data)
+        
     except Exception as e:
         logger.error(f"Error fetching usage: {e}")
         raise HTTPException(status_code=500, detail="Failed to fetch usage")
 
 
-@router.post("/subscribe/{plan_id}")
+@router.post("/subscribe/{price_id}")
 async def subscribe_to_plan(
-    plan_id: int,
+    price_id: str,
     request: Request,
     db: Session = Depends(get_db),
     _: dict = Depends(verify_login)
 ):
-    """Subscribe user to a metered billing plan."""
+    """Subscribe user to a metered billing plan using Stripe price ID."""
     try:
         user_id = request.session['userinfo']['sub']
         org_id = request.session['userinfo'].get('org_id', user_id)
         
         # Check if user already has a subscription
-        existing = get_user_subscription(db, user_id, org_id)
+        existing = get_user_subscription_mapping(db, user_id, org_id)
         if existing:
-            raise HTTPException(status_code=400, detail="User already has an active subscription")
+            # Verify with Stripe if subscription is actually active
+            stripe_sub = stripe.Subscription.retrieve(existing.stripe_subscription_id)
+            if stripe_sub.status in ['active', 'trialing', 'past_due']:
+                raise HTTPException(status_code=400, detail="User already has an active subscription")
         
-        # Get plan details
-        plans = get_subscription_plans(db)
-        plan = next((p for p in plans if p.id == plan_id), None)
-        if not plan:
-            raise HTTPException(status_code=404, detail="Plan not found")
+        # Validate that the price exists and is for a subscription plan
+        try:
+            price = stripe.Price.retrieve(price_id, expand=['product'])
+            if not price.product.metadata.get('is_subscription_plan') == 'true':
+                raise HTTPException(status_code=400, detail="Invalid subscription plan")
+        except stripe.error.StripeError:
+            raise HTTPException(status_code=404, detail="Subscription plan not found")
         
         # Create or get Stripe customer
         user_email = request.session['userinfo'].get('email', f'{user_id}@example.com')
@@ -150,32 +166,32 @@ async def subscribe_to_plan(
             stripe_subscription = stripe.Subscription.create(
                 customer=customer.id,
                 items=[{
-                    'price': plan.stripe_price_id,
+                    'price': price_id,
                 }],
                 metadata={
                     'user_id': user_id,
                     'org_id': org_id,
-                    'plan_id': str(plan_id)
+                    'product_id': price.product.id
                 }
             )
             
-            # Create subscription in our database
+            # Create subscription mapping in our database
             subscription_data = SubscriptionCreate(
                 user_id=user_id,
                 org_id=org_id,
-                plan_id=plan_id
+                stripe_price_id=price_id
             )
-            subscription = create_subscription(
+            mapping = create_subscription_mapping(
                 db, subscription_data, 
                 stripe_subscription.id, 
                 customer.id
             )
             
             return {
-                "subscription_id": subscription.id,
+                "mapping_id": mapping.id,
                 "stripe_subscription_id": stripe_subscription.id,
-                "status": "active",
-                "plan_name": plan.name
+                "status": stripe_subscription.status,
+                "plan_name": price.product.name
             }
             
         except stripe.error.StripeError as e:
@@ -189,32 +205,25 @@ async def subscribe_to_plan(
         raise HTTPException(status_code=500, detail="Failed to create subscription")
 
 
-# One-time payments are no longer needed with metered billing
-# Users are billed automatically based on actual usage
-
-
 @router.get("/invoices")
 async def get_user_invoices(
     request: Request,
+    db: Session = Depends(get_db),
     _: dict = Depends(verify_login)
 ):
     """Get user's Stripe invoices."""
     try:
         user_id = request.session['userinfo']['sub']
+        org_id = request.session['userinfo'].get('org_id', user_id)
         
-        # Get Stripe customer
-        customers = stripe.Customer.list(
-            metadata={'user_id': user_id}
-        )
-        
-        if not customers.data:
+        # Get subscription mapping to get customer ID
+        mapping = get_user_subscription_mapping(db, user_id, org_id)
+        if not mapping:
             return {"invoices": []}
         
-        customer = customers.data[0]
-        
-        # Get invoices
+        # Get invoices from Stripe
         invoices = stripe.Invoice.list(
-            customer=customer.id,
+            customer=mapping.stripe_customer_id,
             limit=10
         )
         
@@ -239,27 +248,25 @@ async def cancel_subscription(
         user_id = request.session['userinfo']['sub']
         org_id = request.session['userinfo'].get('org_id', user_id)
         
-        # Get current subscription
-        subscription = get_user_subscription(db, user_id, org_id)
-        if not subscription:
+        # Get current subscription mapping
+        mapping = get_user_subscription_mapping(db, user_id, org_id)
+        if not mapping:
             raise HTTPException(status_code=404, detail="No active subscription found")
         
         # Cancel Stripe subscription
         try:
-            stripe.Subscription.modify(
-                subscription.stripe_subscription_id,
+            cancelled_subscription = stripe.Subscription.modify(
+                mapping.stripe_subscription_id,
                 cancel_at_period_end=True
             )
+            
+            return {
+                "message": "Subscription will be cancelled at the end of the current period",
+                "cancel_at": cancelled_subscription.cancel_at
+            }
         except stripe.error.StripeError as e:
             logger.error(f"Error canceling Stripe subscription: {e}")
-        
-        # Update subscription status
-        subscription.status = SubscriptionStatus.CANCELLED
-        subscription.updated_at = datetime.utcnow()
-        db.add(subscription)
-        db.commit()
-        
-        return {"message": "Subscription cancelled successfully"}
+            raise HTTPException(status_code=400, detail=f"Error canceling subscription: {str(e)}")
         
     except HTTPException:
         raise

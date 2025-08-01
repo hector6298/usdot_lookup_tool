@@ -5,8 +5,7 @@ from datetime import datetime
 from fastapi import APIRouter, Request, HTTPException
 from sqlmodel import Session
 from app.database import get_db
-from app.models.subscription import Subscription, SubscriptionStatus
-from app.crud.subscription import get_user_subscription
+from app.crud.subscription import get_user_subscription_mapping
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -55,11 +54,8 @@ async def stripe_webhook(request: Request):
         raise HTTPException(status_code=500, detail="Webhook processing failed")
 
 
-# One-time payments are no longer needed with metered billing
-
-
 async def handle_invoice_payment_succeeded(invoice):
-    """Handle successful subscription payment - no action needed for metered billing."""
+    """Handle successful subscription payment - minimal logging for metered billing."""
     try:
         subscription_id = invoice.get('subscription')
         if not subscription_id:
@@ -74,51 +70,40 @@ async def handle_invoice_payment_succeeded(invoice):
         
         if user_id and org_id:
             logger.info(f"Invoice payment succeeded for user {user_id}, subscription {subscription_id}")
-            # Stripe handles the billing automatically for metered usage
+            # Stripe handles everything automatically for metered billing
             
     except Exception as e:
         logger.error(f"Error handling invoice payment: {e}")
 
 
 async def handle_subscription_updated(stripe_subscription):
-    """Handle subscription updates."""
+    """Handle subscription updates - mainly for logging since Stripe manages state."""
     try:
         metadata = stripe_subscription.get('metadata', {})
         user_id = metadata.get('user_id')
         org_id = metadata.get('org_id')
         
         if user_id and org_id:
-            from app.database import get_db
-            from app.crud.subscription import get_user_subscription
+            stripe_status = stripe_subscription.get('status')
+            logger.info(f"Subscription updated for user {user_id}: {stripe_status}")
             
-            db = next(get_db())
-            subscription = get_user_subscription(db, user_id, org_id)
-            
-            if subscription:
-                # Update subscription status based on Stripe status
-                stripe_status = stripe_subscription.get('status')
-                
-                if stripe_status == 'active':
-                    subscription.status = SubscriptionStatus.ACTIVE
-                elif stripe_status == 'past_due':
-                    subscription.status = SubscriptionStatus.PAST_DUE
-                elif stripe_status == 'unpaid':
-                    subscription.status = SubscriptionStatus.UNPAID
-                elif stripe_status == 'canceled':
-                    subscription.status = SubscriptionStatus.CANCELLED
-                    
-                subscription.updated_at = datetime.utcnow()
-                db.add(subscription)
-                db.commit()
-                
-                logger.info(f"Updated subscription status for user {user_id}: {stripe_status}")
+            # If subscription is cancelled, we might want to clean up the mapping
+            if stripe_status == 'canceled':
+                from app.database import get_db
+                db = next(get_db())
+                mapping = get_user_subscription_mapping(db, user_id, org_id)
+                if mapping:
+                    # Remove the mapping since subscription is cancelled
+                    db.delete(mapping)
+                    db.commit()
+                    logger.info(f"Removed subscription mapping for cancelled subscription: user {user_id}")
                 
     except Exception as e:
         logger.error(f"Error handling subscription update: {e}")
 
 
 async def handle_subscription_deleted(stripe_subscription):
-    """Handle subscription cancellation."""
+    """Handle subscription cancellation - clean up local mapping."""
     try:
         metadata = stripe_subscription.get('metadata', {})
         user_id = metadata.get('user_id')
@@ -126,18 +111,14 @@ async def handle_subscription_deleted(stripe_subscription):
         
         if user_id and org_id:
             from app.database import get_db
-            from app.crud.subscription import get_user_subscription
-            
             db = next(get_db())
-            subscription = get_user_subscription(db, user_id, org_id)
+            mapping = get_user_subscription_mapping(db, user_id, org_id)
             
-            if subscription:
-                subscription.status = SubscriptionStatus.CANCELLED
-                subscription.updated_at = datetime.utcnow()
-                db.add(subscription)
+            if mapping:
+                # Remove the mapping since subscription is deleted
+                db.delete(mapping)
                 db.commit()
-                
-                logger.info(f"Cancelled subscription for user {user_id}")
+                logger.info(f"Removed subscription mapping for deleted subscription: user {user_id}")
                 
     except Exception as e:
         logger.error(f"Error handling subscription deletion: {e}")
