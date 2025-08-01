@@ -2,48 +2,51 @@
 
 ## Overview
 
-The USDOT Lookup Tool now includes a comprehensive subscription system with usage-based quotas and Stripe payment integration. Users can subscribe to different tiers and purchase additional operations as needed.
+The USDOT Lookup Tool now includes a comprehensive subscription system using Stripe's native metered billing. This approach eliminates the need for custom quota tracking infrastructure by leveraging Stripe's proven billing capabilities.
 
 ## Subscription Tiers
 
+All tiers use Stripe's metered billing with quantity transformation for tiered pricing:
+
 ### Free Tier
-- **Price**: $0/month
-- **Quota**: 20 operations per month
+- **Free quota**: 20 operations per month
+- **Overage**: No additional charges
 - **Features**: Image OCR, manual USDOT input, Salesforce sync
 
 ### Basic Tier  
-- **Price**: $9.99/month
-- **Quota**: 150 operations per month
+- **Free quota**: 20 operations per month
+- **Overage**: Charged per operation beyond free quota
 - **Features**: Image OCR, manual USDOT input, Salesforce sync
 
 ### Professional Tier
-- **Price**: $29.99/month  
-- **Quota**: 500 operations per month
+- **Free quota**: 20 operations per month
+- **Overage**: Lower per-operation cost than Basic tier
 - **Features**: Image OCR, manual USDOT input, Salesforce sync
 
 ### Enterprise Tier
-- **Price**: $99.99/month
-- **Quota**: 2000 operations per month
+- **Free quota**: 20 operations per month
+- **Overage**: Lowest per-operation cost with volume discounts
 - **Features**: Image OCR, manual USDOT input, Salesforce sync
 
 ## Key Features
 
-### Quota Management
-- Monthly quota tracking with real-time usage monitoring
-- Unused quota carries over to next month (e.g., 10 remaining + 150 new = 160 total)
-- Quota validation before processing operations
-- Graceful degradation when quota is exhausted
+### Stripe Metered Billing
+- Automatic usage reporting to Stripe after each operation
+- Real-time usage tracking via Stripe's infrastructure
+- Quantity transformation for tiered pricing structures
+- Automatic billing based on actual usage
 
-### One-Time Payments
-- Purchase additional operations at $0.10 per operation
-- Instant quota replenishment
-- No subscription required for one-time purchases
+### Simplified Architecture
+- No custom quota tracking tables
+- Stripe handles all billing calculations
+- Reduced maintenance overhead
+- Proven billing infrastructure
 
 ### Access Control
-- Upload operations blocked when quota exceeded
-- Dashboard and existing data remain accessible
-- Existing carrier sync operations continue to work
-- Clear error messages with upgrade prompts
+- No pre-validation of quotas (users can always perform operations)
+- Usage reported to Stripe after successful operations
+- Billing occurs automatically based on usage
+- Clear usage information available from Stripe
 
 ## Technical Implementation
 
@@ -52,9 +55,8 @@ The USDOT Lookup Tool now includes a comprehensive subscription system with usag
 #### SubscriptionPlan
 - `id`: Primary key
 - `name`: Plan name (Free, Basic, Professional, Enterprise)
-- `price_cents`: Price in cents (999 = $9.99)
-- `monthly_quota`: Operations allowed per month
-- `stripe_price_id`: Stripe price ID for billing
+- `stripe_price_id`: Stripe price ID for metered billing (required)
+- `free_quota`: Free operations included per month
 - `is_active`: Whether plan is available
 - `created_at`: Creation timestamp
 
@@ -63,30 +65,38 @@ The USDOT Lookup Tool now includes a comprehensive subscription system with usag
 - `user_id`: Foreign key to AppUser
 - `org_id`: Foreign key to AppOrg
 - `plan_id`: Foreign key to SubscriptionPlan
-- `stripe_subscription_id`: Stripe subscription ID
+- `stripe_subscription_id`: Stripe subscription ID (required)
+- `stripe_customer_id`: Stripe customer ID (required)
 - `status`: active, inactive, cancelled, past_due, unpaid
-- `current_period_start/end`: Billing period dates
 - `created_at/updated_at`: Timestamps
 
-#### UsageQuota
-- `id`: Primary key
-- `subscription_id`: Foreign key to Subscription
-- `user_id/org_id`: User and organization references
-- `period_start/end`: Quota period dates
-- `quota_limit`: Total quota for period
-- `quota_used`: Operations consumed
-- `quota_remaining`: Operations available
-- `carryover_from_previous`: Unused quota from last period
-- `created_at/updated_at`: Timestamps
+### Stripe Integration
 
-#### OneTimePayment
-- `id`: Primary key
-- `user_id/org_id`: User and organization references
-- `stripe_payment_intent_id`: Stripe payment intent ID
-- `amount_cents`: Payment amount in cents
-- `quota_purchased`: Additional operations purchased
-- `description`: Payment description
-- `created_at`: Payment timestamp
+#### Metered Billing Setup
+1. **Create Stripe Products**: One for each tier (Free, Basic, Professional, Enterprise)
+2. **Create Stripe Prices**: Configure each with metered billing and quantity transformation
+3. **Quantity Transformation**: Set up tiered pricing (e.g., first 20 free, then charge per operation)
+4. **Usage Reporting**: Operations are reported to Stripe after successful completion
+
+#### Price Configuration Example
+```json
+{
+  "currency": "usd",
+  "billing_scheme": "tiered",
+  "tiers_mode": "graduated",
+  "tiers": [
+    {
+      "up_to": 20,
+      "unit_amount_decimal": "0"
+    },
+    {
+      "up_to": "inf",
+      "unit_amount_decimal": "500"
+    }
+  ],
+  "usage_type": "metered"
+}
+```
 
 ### API Endpoints
 
@@ -94,39 +104,35 @@ The USDOT Lookup Tool now includes a comprehensive subscription system with usag
 - `GET /billing/`: Subscription management page
 - `GET /billing/plans`: List available subscription plans
 - `GET /billing/subscription`: Get current user subscription
-- `GET /billing/usage`: Get current usage quota
+- `GET /billing/usage`: Get current usage from Stripe
 - `POST /billing/subscribe/{plan_id}`: Subscribe to a plan
-- `POST /billing/purchase-quota`: Purchase additional quota
-- `GET /billing/invoices`: Get user invoices
 - `POST /billing/cancel-subscription`: Cancel subscription
 
 #### Webhooks
 - `POST /webhooks/stripe`: Handle Stripe webhook events
-  - `payment_intent.succeeded`: One-time payment completion
-  - `invoice.payment_succeeded`: Subscription renewal
+  - `invoice.payment_succeeded`: Subscription billing events
   - `customer.subscription.updated`: Subscription changes
   - `customer.subscription.deleted`: Subscription cancellation
 
 ### Integration Points
 
 #### Upload Route Modifications
-The `/upload` endpoint now includes:
-1. **Quota Validation**: Checks available quota before processing
-2. **Usage Tracking**: Decrements quota after successful operations
-3. **Error Handling**: Returns structured error responses for quota issues
-4. **Quota Information**: Includes quota status in response
+The `/upload` endpoint now:
+1. **Subscription Check**: Verifies user has active subscription
+2. **Usage Reporting**: Reports usage to Stripe after successful operations
+3. **Error Handling**: Returns structured error responses for subscription issues
+4. **Usage Information**: Includes current usage data from Stripe in response
 
 #### User Registration
-- New users automatically receive a free subscription
-- Free subscription includes 20 operations per month
-- Immediate access to basic functionality
+- New users must subscribe to a plan (including free) to use the service
+- Free plan provides 20 operations per month at no cost
+- Usage beyond free quota is automatically billed via Stripe
 
 #### Stripe Integration
-- Sandbox mode using `STRIPE_SB_PK` and `STRIPE_SB_SK` environment variables
-- Customer creation and management
-- Subscription lifecycle handling
-- Webhook event processing
-- Payment intent creation for one-time purchases
+- Metered billing with automatic usage reporting
+- Customer and subscription management
+- Webhook event processing for billing lifecycle
+- Real-time usage tracking via Stripe APIs
 
 ## Configuration
 
@@ -144,54 +150,69 @@ Run the subscription tables migration:
 alembic upgrade head
 ```
 
-The migration creates:
-- Subscription tables with proper foreign key relationships
-- Default subscription plans (Free, Basic, Professional, Enterprise)
-- Indexes for efficient quota lookups
+### Database Migration
+Run the updated subscription migration:
+```bash
+alembic upgrade head
+```
+
+The migration:
+- Removes custom quota tracking tables (UsageQuota, OneTimePayment)
+- Updates SubscriptionPlan for metered billing with Stripe price IDs
+- Updates Subscription to require Stripe IDs
+- Eliminates custom billing infrastructure
 
 ## Usage Examples
 
-### Checking User Quota
+### Getting Current Usage from Stripe
 ```python
-from app.crud.subscription import get_current_usage_quota
+from app.crud.subscription import get_current_usage_from_stripe
 
-quota = get_current_usage_quota(db, user_id, org_id)
-if quota and quota.quota_remaining > 0:
-    # User has available quota
-    operations_available = quota.quota_remaining
-else:
-    # User needs to upgrade or purchase quota
+subscription = get_user_subscription(db, user_id, org_id)
+usage_data = get_current_usage_from_stripe(subscription)
+if usage_data:
+    current_usage = usage_data['usage_count']
+    free_quota = usage_data['plan_free_quota']
 ```
 
-### Using Quota
+### Reporting Usage to Stripe
 ```python
-from app.crud.subscription import use_quota
+from app.crud.subscription import report_usage_to_stripe
 
-success = use_quota(db, user_id, org_id, amount=5)
+subscription = get_user_subscription(db, user_id, org_id)
+success = report_usage_to_stripe(subscription, operations_count=5)
 if success:
-    # Quota was successfully used
-    proceed_with_operations()
-else:
-    # Insufficient quota
-    return_quota_error()
+    # Usage successfully reported to Stripe
+    logger.info("Usage reported to Stripe")
 ```
 
-### Creating Subscription
+### Creating Subscription with Stripe
 ```python
 from app.crud.subscription import create_subscription
 from app.models.subscription import SubscriptionCreate
 
+# Create Stripe subscription first
+stripe_subscription = stripe.Subscription.create(
+    customer=customer_id,
+    items=[{'price': plan.stripe_price_id}]
+)
+
+# Then create in our database
 subscription_data = SubscriptionCreate(
     user_id="user_123",
     org_id="org_456", 
     plan_id=2  # Basic plan
 )
-subscription = create_subscription(db, subscription_data)
+subscription = create_subscription(
+    db, subscription_data, 
+    stripe_subscription.id, 
+    customer_id
+)
 ```
 
 ## Error Handling
 
-### Quota Exceeded Response
+### No Subscription Response
 ```json
 {
   "error": "quota_exceeded",
@@ -201,31 +222,40 @@ subscription = create_subscription(db, subscription_data)
 }
 ```
 
-### No Subscription Response  
 ```json
 {
   "error": "no_subscription", 
   "message": "No active subscription found. Please subscribe to a plan to continue.",
-  "quota_needed": 3
+  "operations_needed": 3
 }
 ```
 
 ## Frontend Integration
 
 The subscription management page (`/billing/`) provides:
-- Current usage visualization with progress bars
-- Available plans with pricing and features
+- Current usage visualization from Stripe data
+- Available plans with metered pricing information
 - One-click subscription management
-- Additional quota purchase with Stripe integration
-- Real-time quota updates after operations
+- Real-time usage updates from Stripe
+- Simplified billing without quota management complexity
 
 ## Security Considerations
 
 1. **Webhook Verification**: All Stripe webhooks are verified using signature validation
-2. **User Isolation**: Quota tracking is scoped to user_id and org_id
+2. **User Isolation**: Subscriptions are scoped to user_id and org_id
 3. **Payment Security**: All payment processing handled by Stripe
 4. **Data Protection**: Sensitive payment data never stored locally
-5. **Access Control**: Subscription status checked on every protected operation
+5. **Metered Billing**: Usage reported securely to Stripe's infrastructure
+6. **Access Control**: Subscription status checked on operations
+
+## Benefits of Stripe Metered Billing
+
+1. **Reduced Infrastructure**: No custom quota tracking, carryover logic, or payment handling
+2. **Proven Reliability**: Leverage Stripe's battle-tested billing infrastructure
+3. **Automatic Scaling**: Stripe handles high-volume usage tracking and billing
+4. **Simplified Code**: Less custom logic means fewer bugs and easier maintenance
+5. **Better UX**: No pre-validation means users can always perform operations
+6. **Accurate Billing**: Real usage-based billing instead of pre-paid quotas
 
 ## Monitoring and Analytics
 

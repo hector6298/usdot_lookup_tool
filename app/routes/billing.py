@@ -9,12 +9,12 @@ from sqlmodel import Session
 from app.database import get_db
 from app.routes.auth import verify_login
 from app.models.subscription import (
-    SubscriptionPlan, Subscription, UsageQuota,
-    SubscriptionCreate, SubscriptionResponse, UsageQuotaResponse
+    SubscriptionPlan, Subscription,
+    SubscriptionCreate, SubscriptionResponse, UsageResponse
 )
 from app.crud.subscription import (
     get_subscription_plans, get_user_subscription, create_subscription,
-    get_current_usage_quota, initialize_default_plans
+    get_current_usage_from_stripe, initialize_default_plans
 )
 
 # Set up logging
@@ -80,19 +80,23 @@ async def get_current_subscription(
         raise HTTPException(status_code=500, detail="Failed to fetch subscription")
 
 
-@router.get("/usage", response_model=UsageQuotaResponse | None)
+@router.get("/usage", response_model=UsageResponse | None)
 async def get_current_usage(
     request: Request,
     db: Session = Depends(get_db),
     _: dict = Depends(verify_login)
 ):
-    """Get current usage quota."""
+    """Get current usage from Stripe."""
     try:
         user_id = request.session['userinfo']['sub']
         org_id = request.session['userinfo'].get('org_id', user_id)
         
-        usage = get_current_usage_quota(db, user_id, org_id)
-        return usage
+        subscription = get_user_subscription(db, user_id, org_id)
+        if not subscription:
+            return None
+        
+        usage_data = get_current_usage_from_stripe(subscription)
+        return usage_data
     except Exception as e:
         logger.error(f"Error fetching usage: {e}")
         raise HTTPException(status_code=500, detail="Failed to fetch usage")
@@ -105,7 +109,7 @@ async def subscribe_to_plan(
     db: Session = Depends(get_db),
     _: dict = Depends(verify_login)
 ):
-    """Subscribe user to a plan."""
+    """Subscribe user to a metered billing plan."""
     try:
         user_id = request.session['userinfo']['sub']
         org_id = request.session['userinfo'].get('org_id', user_id)
@@ -121,44 +125,32 @@ async def subscribe_to_plan(
         if not plan:
             raise HTTPException(status_code=404, detail="Plan not found")
         
-        # For free plan, create subscription directly
-        if plan.price_cents == 0:
-            subscription_data = SubscriptionCreate(
-                user_id=user_id,
-                org_id=org_id,
-                plan_id=plan_id
-            )
-            subscription = create_subscription(db, subscription_data)
-            return {"subscription_id": subscription.id, "status": "active"}
+        # Create or get Stripe customer
+        user_email = request.session['userinfo'].get('email', f'{user_id}@example.com')
         
-        # For paid plans, create Stripe subscription
         try:
-            # Create or get Stripe customer
-            user_email = request.session['userinfo'].get('email', f'{user_id}@example.com')
-            
-            customer = stripe.Customer.create(
+            # Check if customer already exists
+            customers = stripe.Customer.list(
                 email=user_email,
-                metadata={
-                    'user_id': user_id,
-                    'org_id': org_id
-                }
+                limit=1
             )
             
-            # Create Stripe subscription (this would need a payment method)
-            # For now, we'll create a subscription without payment method for demo
+            if customers.data:
+                customer = customers.data[0]
+            else:
+                customer = stripe.Customer.create(
+                    email=user_email,
+                    metadata={
+                        'user_id': user_id,
+                        'org_id': org_id
+                    }
+                )
+            
+            # Create Stripe subscription with metered billing
             stripe_subscription = stripe.Subscription.create(
                 customer=customer.id,
                 items=[{
-                    'price_data': {
-                        'currency': 'usd',
-                        'product_data': {
-                            'name': plan.name,
-                        },
-                        'unit_amount': plan.price_cents,
-                        'recurring': {
-                            'interval': 'month',
-                        },
-                    },
+                    'price': plan.stripe_price_id,
                 }],
                 metadata={
                     'user_id': user_id,
@@ -173,18 +165,17 @@ async def subscribe_to_plan(
                 org_id=org_id,
                 plan_id=plan_id
             )
-            subscription = create_subscription(db, subscription_data)
-            
-            # Update with Stripe subscription ID
-            subscription.stripe_subscription_id = stripe_subscription.id
-            db.add(subscription)
-            db.commit()
+            subscription = create_subscription(
+                db, subscription_data, 
+                stripe_subscription.id, 
+                customer.id
+            )
             
             return {
                 "subscription_id": subscription.id,
                 "stripe_subscription_id": stripe_subscription.id,
                 "status": "active",
-                "client_secret": stripe_subscription.latest_invoice
+                "plan_name": plan.name
             }
             
         except stripe.error.StripeError as e:
@@ -198,46 +189,8 @@ async def subscribe_to_plan(
         raise HTTPException(status_code=500, detail="Failed to create subscription")
 
 
-@router.post("/purchase-quota")
-async def purchase_additional_quota(
-    quota_amount: int,
-    request: Request,
-    db: Session = Depends(get_db),
-    _: dict = Depends(verify_login)
-):
-    """Purchase additional quota with one-time payment."""
-    try:
-        user_id = request.session['userinfo']['sub']
-        org_id = request.session['userinfo'].get('org_id', user_id)
-        
-        # Calculate price (e.g., $0.10 per additional operation)
-        price_per_operation = 10  # cents
-        total_price = quota_amount * price_per_operation
-        
-        # Create Stripe payment intent
-        payment_intent = stripe.PaymentIntent.create(
-            amount=total_price,
-            currency='usd',
-            metadata={
-                'user_id': user_id,
-                'org_id': org_id,
-                'quota_amount': str(quota_amount),
-                'type': 'quota_purchase'
-            }
-        )
-        
-        return {
-            "client_secret": payment_intent.client_secret,
-            "amount": total_price,
-            "quota_amount": quota_amount
-        }
-        
-    except stripe.error.StripeError as e:
-        logger.error(f"Stripe error: {e}")
-        raise HTTPException(status_code=400, detail=f"Payment error: {str(e)}")
-    except Exception as e:
-        logger.error(f"Error creating payment intent: {e}")
-        raise HTTPException(status_code=500, detail="Failed to create payment")
+# One-time payments are no longer needed with metered billing
+# Users are billed automatically based on actual usage
 
 
 @router.get("/invoices")
@@ -291,18 +244,17 @@ async def cancel_subscription(
         if not subscription:
             raise HTTPException(status_code=404, detail="No active subscription found")
         
-        # Cancel Stripe subscription if it exists
-        if subscription.stripe_subscription_id:
-            try:
-                stripe.Subscription.modify(
-                    subscription.stripe_subscription_id,
-                    cancel_at_period_end=True
-                )
-            except stripe.error.StripeError as e:
-                logger.error(f"Error canceling Stripe subscription: {e}")
+        # Cancel Stripe subscription
+        try:
+            stripe.Subscription.modify(
+                subscription.stripe_subscription_id,
+                cancel_at_period_end=True
+            )
+        except stripe.error.StripeError as e:
+            logger.error(f"Error canceling Stripe subscription: {e}")
         
         # Update subscription status
-        subscription.status = "cancelled"
+        subscription.status = SubscriptionStatus.CANCELLED
         subscription.updated_at = datetime.utcnow()
         db.add(subscription)
         db.commit()

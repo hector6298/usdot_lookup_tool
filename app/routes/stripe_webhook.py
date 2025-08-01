@@ -6,7 +6,7 @@ from fastapi import APIRouter, Request, HTTPException
 from sqlmodel import Session
 from app.database import get_db
 from app.models.subscription import Subscription, SubscriptionStatus
-from app.crud.subscription import create_one_time_payment, renew_subscription_period
+from app.crud.subscription import get_user_subscription
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -39,9 +39,7 @@ async def stripe_webhook(request: Request):
             raise HTTPException(status_code=400, detail="Invalid signature")
         
         # Handle the event
-        if event['type'] == 'payment_intent.succeeded':
-            await handle_payment_intent_succeeded(event['data']['object'])
-        elif event['type'] == 'invoice.payment_succeeded':
+        if event['type'] == 'invoice.payment_succeeded':
             await handle_invoice_payment_succeeded(event['data']['object'])
         elif event['type'] == 'customer.subscription.updated':
             await handle_subscription_updated(event['data']['object'])
@@ -57,38 +55,11 @@ async def stripe_webhook(request: Request):
         raise HTTPException(status_code=500, detail="Webhook processing failed")
 
 
-async def handle_payment_intent_succeeded(payment_intent):
-    """Handle successful one-time payment."""
-    try:
-        metadata = payment_intent.get('metadata', {})
-        
-        if metadata.get('type') == 'quota_purchase':
-            user_id = metadata.get('user_id')
-            org_id = metadata.get('org_id') 
-            quota_amount = int(metadata.get('quota_amount', 0))
-            
-            # Create payment record
-            from app.database import get_db
-            db = next(get_db())
-            
-            payment_data = {
-                'user_id': user_id,
-                'org_id': org_id,
-                'stripe_payment_intent_id': payment_intent['id'],
-                'amount_cents': payment_intent['amount'],
-                'quota_purchased': quota_amount,
-                'description': f'Additional quota purchase: {quota_amount} operations'
-            }
-            
-            create_one_time_payment(db, payment_data)
-            logger.info(f"Created one-time payment for user {user_id}: {quota_amount} quota")
-            
-    except Exception as e:
-        logger.error(f"Error handling payment intent: {e}")
+# One-time payments are no longer needed with metered billing
 
 
 async def handle_invoice_payment_succeeded(invoice):
-    """Handle successful subscription payment."""
+    """Handle successful subscription payment - no action needed for metered billing."""
     try:
         subscription_id = invoice.get('subscription')
         if not subscription_id:
@@ -102,17 +73,8 @@ async def handle_invoice_payment_succeeded(invoice):
         org_id = metadata.get('org_id')
         
         if user_id and org_id:
-            # Update subscription period in our database
-            from app.database import get_db
-            from app.crud.subscription import get_user_subscription
-            
-            db = next(get_db())
-            subscription = get_user_subscription(db, user_id, org_id)
-            
-            if subscription:
-                # Renew subscription period
-                renew_subscription_period(db, subscription)
-                logger.info(f"Renewed subscription for user {user_id}")
+            logger.info(f"Invoice payment succeeded for user {user_id}, subscription {subscription_id}")
+            # Stripe handles the billing automatically for metered usage
             
     except Exception as e:
         logger.error(f"Error handling invoice payment: {e}")

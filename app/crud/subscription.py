@@ -1,9 +1,10 @@
 import logging
-from datetime import datetime, timedelta
+import stripe
+from datetime import datetime
 from typing import Optional, List
 from sqlmodel import Session, select
 from app.models.subscription import (
-    Subscription, SubscriptionPlan, UsageQuota, OneTimePayment,
+    Subscription, SubscriptionPlan,
     SubscriptionCreate, SubscriptionStatus
 )
 from app.models.user_org_membership import AppUser, AppOrg
@@ -46,8 +47,8 @@ def get_user_subscription(db: Session, user_id: str, org_id: str) -> Optional[Su
         return None
 
 
-def create_subscription(db: Session, subscription_data: SubscriptionCreate) -> Subscription:
-    """Create a new subscription."""
+def create_subscription(db: Session, subscription_data: SubscriptionCreate, stripe_subscription_id: str, stripe_customer_id: str) -> Subscription:
+    """Create a new subscription with Stripe IDs."""
     try:
         # Check if user/org exists
         user = db.get(AppUser, subscription_data.user_id)
@@ -67,25 +68,21 @@ def create_subscription(db: Session, subscription_data: SubscriptionCreate) -> S
             raise HTTPException(status_code=400, detail="User already has an active subscription")
         
         # Create subscription
-        now = datetime.utcnow()
         subscription = Subscription(
             user_id=subscription_data.user_id,
             org_id=subscription_data.org_id,
             plan_id=subscription_data.plan_id,
+            stripe_subscription_id=stripe_subscription_id,
+            stripe_customer_id=stripe_customer_id,
             status=SubscriptionStatus.ACTIVE,
-            current_period_start=now,
-            current_period_end=now + timedelta(days=30),  # 30-day period
-            created_at=now
+            created_at=datetime.utcnow()
         )
         
         db.add(subscription)
         db.commit()
         db.refresh(subscription)
         
-        # Create initial usage quota
-        create_usage_quota_for_period(db, subscription)
-        
-        logger.info(f"Created subscription {subscription.id} for user {user_id}")
+        logger.info(f"Created subscription {subscription.id} for user {subscription_data.user_id}")
         return subscription
         
     except HTTPException:
@@ -96,193 +93,113 @@ def create_subscription(db: Session, subscription_data: SubscriptionCreate) -> S
         raise HTTPException(status_code=500, detail="Failed to create subscription")
 
 
-def get_current_usage_quota(db: Session, user_id: str, org_id: str) -> Optional[UsageQuota]:
-    """Get current usage quota for user/org."""
+def report_usage_to_stripe(subscription: Subscription, usage_quantity: int) -> bool:
+    """Report usage to Stripe for metered billing."""
     try:
-        now = datetime.utcnow()
-        statement = select(UsageQuota).where(
-            UsageQuota.user_id == user_id,
-            UsageQuota.org_id == org_id,
-            UsageQuota.period_start <= now,
-            UsageQuota.period_end >= now
+        # Get the subscription items from Stripe
+        stripe_subscription = stripe.Subscription.retrieve(subscription.stripe_subscription_id)
+        
+        if not stripe_subscription.items.data:
+            logger.error(f"No subscription items found for {subscription.stripe_subscription_id}")
+            return False
+        
+        # Get the first (and should be only) subscription item
+        subscription_item = stripe_subscription.items.data[0]
+        
+        # Report usage to Stripe
+        usage_record = stripe.UsageRecord.create(
+            subscription_item=subscription_item.id,
+            quantity=usage_quantity,
+            timestamp=int(datetime.utcnow().timestamp()),
+            action='increment'  # Increment usage instead of setting absolute value
         )
-        return db.exec(statement).first()
+        
+        logger.info(f"Reported {usage_quantity} usage to Stripe for subscription {subscription.stripe_subscription_id}")
+        return True
+        
+    except stripe.error.StripeError as e:
+        logger.error(f"Stripe error reporting usage: {e}")
+        return False
     except Exception as e:
-        logger.error(f"Error fetching usage quota for user {user_id}, org {org_id}: {e}")
+        logger.error(f"Error reporting usage to Stripe: {e}")
+        return False
+
+
+def get_current_usage_from_stripe(subscription: Subscription) -> Optional[dict]:
+    """Get current usage data from Stripe."""
+    try:
+        # Get the subscription from Stripe
+        stripe_subscription = stripe.Subscription.retrieve(subscription.stripe_subscription_id)
+        
+        if not stripe_subscription.items.data:
+            logger.error(f"No subscription items found for {subscription.stripe_subscription_id}")
+            return None
+        
+        # Get the subscription item
+        subscription_item = stripe_subscription.items.data[0]
+        
+        # Get usage records summary for current period
+        current_period_start = stripe_subscription.current_period_start
+        current_period_end = stripe_subscription.current_period_end
+        
+        # Get usage summary from Stripe
+        usage_summary = stripe.UsageRecordSummary.list(
+            subscription_item=subscription_item.id,
+            limit=1
+        )
+        
+        usage_count = 0
+        if usage_summary.data:
+            usage_count = usage_summary.data[0].total_usage
+        
+        return {
+            'period_start': datetime.fromtimestamp(current_period_start),
+            'period_end': datetime.fromtimestamp(current_period_end),
+            'usage_count': usage_count,
+            'plan_free_quota': subscription.plan.free_quota
+        }
+        
+    except stripe.error.StripeError as e:
+        logger.error(f"Stripe error getting usage: {e}")
+        return None
+    except Exception as e:
+        logger.error(f"Error getting usage from Stripe: {e}")
         return None
 
 
-def create_usage_quota_for_period(db: Session, subscription: Subscription, carryover: int = 0) -> UsageQuota:
-    """Create a usage quota for a subscription period."""
-    try:
-        usage_quota = UsageQuota(
-            subscription_id=subscription.id,
-            user_id=subscription.user_id,
-            org_id=subscription.org_id,
-            period_start=subscription.current_period_start,
-            period_end=subscription.current_period_end,
-            quota_limit=subscription.plan.monthly_quota + carryover,
-            quota_used=0,
-            quota_remaining=subscription.plan.monthly_quota + carryover,
-            carryover_from_previous=carryover,
-            created_at=datetime.utcnow()
-        )
-        
-        db.add(usage_quota)
-        db.commit()
-        db.refresh(usage_quota)
-        
-        logger.info(f"Created usage quota {usage_quota.id} for subscription {subscription.id}")
-        return usage_quota
-        
-    except Exception as e:
-        logger.error(f"Error creating usage quota: {e}")
-        db.rollback()
-        raise HTTPException(status_code=500, detail="Failed to create usage quota")
-
-
-def use_quota(db: Session, user_id: str, org_id: str, amount: int = 1) -> bool:
-    """Use quota for user/org. Returns True if successful, False if insufficient quota."""
-    try:
-        quota = get_current_usage_quota(db, user_id, org_id)
-        
-        if not quota:
-            logger.warning(f"No quota found for user {user_id}, org {org_id}")
-            return False
-        
-        if quota.quota_remaining < amount:
-            logger.warning(f"Insufficient quota for user {user_id}, org {org_id}. Needed: {amount}, Available: {quota.quota_remaining}")
-            return False
-        
-        # Update quota usage
-        quota.quota_used += amount
-        quota.quota_remaining = quota.quota_limit - quota.quota_used
-        quota.updated_at = datetime.utcnow()
-        
-        db.add(quota)
-        db.commit()
-        
-        logger.info(f"Used {amount} quota for user {user_id}, org {org_id}. Remaining: {quota.quota_remaining}")
-        return True
-        
-    except Exception as e:
-        logger.error(f"Error using quota: {e}")
-        db.rollback()
-        return False
-
-
-def add_quota_from_payment(db: Session, user_id: str, org_id: str, additional_quota: int) -> bool:
-    """Add quota from one-time payment."""
-    try:
-        quota = get_current_usage_quota(db, user_id, org_id)
-        
-        if not quota:
-            logger.warning(f"No quota found for user {user_id}, org {org_id}")
-            return False
-        
-        # Add to quota limit and remaining
-        quota.quota_limit += additional_quota
-        quota.quota_remaining += additional_quota
-        quota.updated_at = datetime.utcnow()
-        
-        db.add(quota)
-        db.commit()
-        
-        logger.info(f"Added {additional_quota} quota for user {user_id}, org {org_id}")
-        return True
-        
-    except Exception as e:
-        logger.error(f"Error adding quota: {e}")
-        db.rollback()
-        return False
-
-
-def create_one_time_payment(db: Session, payment_data: dict) -> OneTimePayment:
-    """Create a one-time payment record."""
-    try:
-        payment = OneTimePayment(**payment_data)
-        
-        db.add(payment)
-        db.commit()
-        db.refresh(payment)
-        
-        # Add the purchased quota
-        add_quota_from_payment(
-            db, 
-            payment.user_id, 
-            payment.org_id, 
-            payment.quota_purchased
-        )
-        
-        logger.info(f"Created one-time payment {payment.id} for user {payment.user_id}")
-        return payment
-        
-    except Exception as e:
-        logger.error(f"Error creating one-time payment: {e}")
-        db.rollback()
-        raise HTTPException(status_code=500, detail="Failed to create payment")
-
-
-def renew_subscription_period(db: Session, subscription: Subscription) -> Subscription:
-    """Renew subscription for next period with carryover."""
-    try:
-        # Get current quota to calculate carryover
-        current_quota = get_current_usage_quota(db, subscription.user_id, subscription.org_id)
-        carryover = current_quota.quota_remaining if current_quota else 0
-        
-        # Update subscription period
-        now = datetime.utcnow()
-        subscription.current_period_start = now
-        subscription.current_period_end = now + timedelta(days=30)
-        subscription.updated_at = now
-        
-        db.add(subscription)
-        db.commit()
-        
-        # Create new usage quota with carryover
-        create_usage_quota_for_period(db, subscription, carryover)
-        
-        logger.info(f"Renewed subscription {subscription.id} with carryover {carryover}")
-        return subscription
-        
-    except Exception as e:
-        logger.error(f"Error renewing subscription: {e}")
-        db.rollback()
-        raise HTTPException(status_code=500, detail="Failed to renew subscription")
-
-
 def initialize_default_plans(db: Session):
-    """Initialize default subscription plans if they don't exist."""
+    """Initialize default subscription plans for Stripe metered billing."""
     try:
         existing_plans = get_subscription_plans(db)
         if existing_plans:
             logger.info("Subscription plans already exist, skipping initialization")
             return
         
-        # Define default plans
+        # Note: These Stripe price IDs should be created in Stripe dashboard with metered billing
+        # and quantity_transformation for tiered pricing structure
         default_plans = [
             SubscriptionPlan(
                 name="Free",
-                price_cents=0,
-                monthly_quota=20,
+                stripe_price_id="price_free_tier",  # This should be created in Stripe
+                free_quota=20,  # First 20 operations free
                 is_active=True
             ),
             SubscriptionPlan(
                 name="Basic",
-                price_cents=999,  # $9.99
-                monthly_quota=150,
+                stripe_price_id="price_basic_tier",  # Metered price with quantity transformation
+                free_quota=20,  # First 20 operations free, then metered
                 is_active=True
             ),
             SubscriptionPlan(
-                name="Professional",
-                price_cents=2999,  # $29.99
-                monthly_quota=500,
+                name="Professional", 
+                stripe_price_id="price_professional_tier",
+                free_quota=20,  # First 20 operations free, then metered
                 is_active=True
             ),
             SubscriptionPlan(
                 name="Enterprise",
-                price_cents=9999,  # $99.99
-                monthly_quota=2000,  # Assuming this should be higher than 200
+                stripe_price_id="price_enterprise_tier",
+                free_quota=20,  # First 20 operations free, then metered
                 is_active=True
             )
         ]
@@ -291,7 +208,7 @@ def initialize_default_plans(db: Session):
             db.add(plan)
         
         db.commit()
-        logger.info("Initialized default subscription plans")
+        logger.info("Initialized default subscription plans for metered billing")
         
     except Exception as e:
         logger.error(f"Error initializing default plans: {e}")
