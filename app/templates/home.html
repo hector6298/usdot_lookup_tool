@@ -92,9 +92,20 @@
             text-align: center;
         }
         
-        .feature {
-            padding: 20px 16px;
-        }
+/* Add this to your <style> section */
+
+    .feature {
+        padding: 20px 16px;
+        border: 2px solid #f0f6f1;           /* Green border */
+        border-radius: 12px;
+        background: #fff;                     /* White card */
+        box-shadow: 0 2px 8px rgba(44,62,80,0.06);
+        transition: box-shadow 0.2s, border-color 0.2s;
+    }
+    .feature:hover {
+        box-shadow: 0 4px 16px rgba(44,62,80,0.12);
+        border-color: #43a047;
+    }
         
         .feature i {
             font-size: 2.5rem;
@@ -163,24 +174,24 @@
 
 <div class="container">
     <img src="/static/logo/app_logo2.jpg" alt="USDOT Lookup Tool Logo" class="logo-img">
-    <h1>Automated USDOT Number Lookup & Lead Capture</h1>
-    <h2>Transform your trucking lead pipeline with AI-powered OCR, FMCSA SAFER web integration, and automated CRM sync</h2>
+    <h1>DotAI</h1>
+    <h2>Transform your trucking lead pipeline from USDOT number to trucking leads with zero data entry.</h2>
     
     <div class="features">
         <div class="feature">
             <i class="fas fa-camera"></i>
-            <h3>OCR Technology</h3>
-            <p>Upload truck images and automatically extract USDOT numbers with advanced computer vision</p>
+            <h3>AI Vision</h3>
+            <p>Automatically extract USDOT numbers from images.</p>
         </div>
         <div class="feature">
             <i class="fas fa-search"></i>
             <h3>SAFER Web Lookups</h3>
-            <p>Instant Federal Motor Carrier Safety Administration (FMCSA) data retrieval</p>
+            <p>Instant data retrieval.</p>
         </div>
         <div class="feature">
             <i class="fas fa-sync-alt"></i>
             <h3>CRM Integration</h3>
-            <p>Seamless Salesforce integration with automated data sync and zero manual data entry</p>
+            <p>Seamless Salesforce integration. Just a few clicks.</p>
         </div>
     </div>
 
