@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Request,HTTPException, Depends, Body
+from fastapi import APIRouter, Request, HTTPException, Depends, Body, Query
 from sqlmodel import Session, select
 from fastapi.responses import RedirectResponse, JSONResponse
 from app.database import get_db
@@ -9,11 +9,116 @@ from app.models.carrier_data import CarrierData
 from datetime import datetime
 import urllib.parse
 import httpx
+import requests
 import logging
 import os
 import time
 
 router = APIRouter()
+
+SALESFORCE_METADATA_API_VERSION = "57.0"  # Use a recent version for Metadata API
+# Utility to get all custom fields for an object
+def get_salesforce_custom_fields(instance_url, access_token, object_name="Account"):
+    url = f"{instance_url}/services/data/v{SALESFORCE_METADATA_API_VERSION}/sobjects/{object_name}/describe"
+    headers = {"Authorization": f"Bearer {access_token}"}
+    resp = requests.get(url, headers=headers)
+    resp.raise_for_status()
+    describe = resp.json()
+    return {f['name'] for f in describe.get('fields', [])}
+
+# Utility to create a custom field using the Metadata API
+def create_salesforce_custom_field(instance_url, access_token, object_name, field_def):
+    url = f"{instance_url}/services/data/v{SALESFORCE_METADATA_API_VERSION}/tooling/sobjects/CustomField"
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json"
+    }
+    resp = requests.post(url, headers=headers, json=field_def)
+    return resp
+
+# Map your CarrierData columns to Salesforce field definitions
+def get_field_definitions(columns=None):
+    # Map: python_attr -> (label, type, length, ...)
+    # Only a subset shown; expand as needed
+    field_map = {
+        "mc_mx_ff_numbers": {"label": "MC MX FF Numbers", "type": "Text", "length": 255},
+        "state_carrier_id": {"label": "State Carrier ID", "type": "Text", "length": 255},
+        "duns_number": {"label": "DUNS Number", "type": "Text", "length": 255},
+        "power_units": {"label": "Power Units", "type": "Number", "precision": 18, "scale": 0},
+        "drivers": {"label": "Drivers", "type": "Number", "precision": 18, "scale": 0},
+        "mcs_150_form_date": {"label": "MCS-150 Form Date", "type": "Date"},
+        "mcs_150_mileage_year_mileage": {"label": "MCS-150 Mileage Year Mileage", "type": "Number", "precision": 18, "scale": 0},
+        "mcs_150_mileage_year_year": {"label": "MCS-150 Mileage Year Year", "type": "Number", "precision": 18, "scale": 0},
+        "out_of_service_date": {"label": "Out Of Service Date", "type": "Date"},
+        "operating_authority_status": {"label": "Operating Authority Status", "type": "Text", "length": 255},
+        "operation_classification": {"label": "Operation Classification", "type": "Text", "length": 255},
+        "carrier_operation": {"label": "Carrier Operation", "type": "Text", "length": 255},
+        "hm_shipper_operation": {"label": "HM Shipper Operation", "type": "Text", "length": 255},
+        "cargo_carried": {"label": "Cargo Carried", "type": "Text", "length": 255},
+        # Add more mappings as needed
+    }
+    if columns is None:
+        columns = list(field_map.keys())
+    return {k: v for k, v in field_map.items() if k in columns}
+
+@router.post("/salesforce/create_custom_fields")
+async def create_salesforce_custom_fields(
+    request: Request,
+    columns: list[str] = Query(None, description="CarrierData columns to add as custom fields. None = all."),
+    object_name: str = Query("Account", description="Salesforce object to add fields to."),
+    db: Session = Depends(get_db)
+):
+    """Create Salesforce custom fields for selected CarrierData columns using the Metadata API."""
+    user_id = request.session["userinfo"]["sub"]
+    org_id = request.session["userinfo"].get("org_id", user_id)
+    token_obj = await get_valid_salesforce_token(db, user_id, org_id)
+    if not token_obj:
+        raise HTTPException(status_code=401, detail="No Salesforce token available. Please reconnect to Salesforce.")
+    access_token = token_obj.access_token
+    instance_url = token_obj.token_data.get("instance_url")
+    if not instance_url:
+        raise HTTPException(status_code=500, detail="Salesforce instance URL missing from token data.")
+
+    # Get existing custom fields
+    try:
+        existing_fields = get_salesforce_custom_fields(instance_url, access_token, object_name)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch Salesforce fields: {e}")
+
+    # Get field definitions
+    field_defs = get_field_definitions(columns)
+    results = []
+    for attr, field in field_defs.items():
+        api_name = f"{attr}__c"
+        if api_name in existing_fields:
+            results.append({"field": api_name, "status": "already_exists"})
+            continue
+        field_payload = {
+            "Metadata": {
+                "fullName": f"{object_name}.{api_name}",
+                "label": field["label"],
+                "type": field["type"]
+            },
+            "TableEnumOrId": object_name,
+        }
+        # Add type-specific properties
+        if field["type"] == "Text":
+            field_payload["Metadata"]["length"] = field["length"]
+        if field["type"] == "Number":
+            field_payload["Metadata"]["precision"] = field["precision"]
+            field_payload["Metadata"]["scale"] = field["scale"]
+        if field["type"] == "Date":
+            pass  # No extra properties
+        resp = create_salesforce_custom_field(instance_url, access_token, object_name, field_payload)
+        if resp.status_code in (200, 201):
+            results.append({"field": api_name, "status": "created"})
+        else:
+            try:
+                error_detail = resp.json()
+            except Exception:
+                error_detail = resp.text
+            results.append({"field": api_name, "status": "error", "detail": error_detail})
+    return {"results": results}
 
 # Set up a module-level logger
 logger = logging.getLogger(__name__)
