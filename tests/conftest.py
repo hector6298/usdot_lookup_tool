@@ -25,7 +25,6 @@ os.environ.setdefault('GOOGLE_APPLICATION_CREDENTIALS', '/tmp/fake_credentials.j
 
 # Import models and schemas after setting env vars
 from app.models.carrier_data import CarrierData, CarrierDataCreate
-from app.models.engagement import CarrierEngagementStatus, CarrierChangeItem
 from app.models.ocr_results import OCRResult, OCRResultCreate
 from app.models.user_org_membership import AppUser, AppOrg
 
@@ -112,29 +111,7 @@ def sample_ocr_db_record():
     )
 
 
-@pytest.fixture
-def sample_engagement_record():
-    """Create sample engagement record for testing."""
-    return CarrierEngagementStatus(
-        usdot="123456",
-        org_id="test_org_456", 
-        user_id="test_user_123",
-        created_at=datetime.utcnow(),
-        carrier_interested=False,
-        carrier_contacted=False,
-        carrier_followed_up=False,
-        carrier_emailed=False
-    )
-
-
-@pytest.fixture
-def sample_change_item():
-    """Create sample change item for testing."""
-    return CarrierChangeItem(
-        usdot="123456",
-        field="carrier_interested",
-        value=True
-    )
+# Engagement fixtures removed - models no longer exist
 
 
 @pytest.fixture  

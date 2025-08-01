@@ -5,11 +5,14 @@ from .ocr_results import OCRResult, OCRResultCreate, OCRResultResponse
 from .user_org_membership import UserOrgMembership, AppUser, AppOrg
 from .crm_object_sync_history import CRMObjectSyncHistory
 from .crm_object_sync_status import CRMObjectSyncStatus
+from .subscription import (
+    SubscriptionMapping,
+    SubscriptionCreate, SubscriptionResponse, UsageResponse
+)
 
 __all__ = [
     "CarrierData",
     "CarrierDataCreate", 
-    "CarrierWithCRMSyncStatusResponse",
     "OAuthToken",
     "OCRResult",
     "OCRResultCreate",
@@ -19,4 +22,8 @@ __all__ = [
     "AppOrg",
     "CRMObjectSyncHistory",
     "CRMObjectSyncStatus",
+    "SubscriptionMapping",
+    "SubscriptionCreate",
+    "SubscriptionResponse",
+    "UsageResponse",
 ]

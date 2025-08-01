@@ -6,7 +6,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 from app.database import init_db
-from app.routes import dashboard, upload, auth, home, data, salesforce, heartbeat, blog
+from app.routes import dashboard, upload, auth, home, data, salesforce, heartbeat, blog, billing, stripe_webhook
 from app.middleware.session_timeout import SessionTimeoutMiddleware
 
 # Configure Logging to Console
@@ -49,6 +49,8 @@ app.include_router(upload.router)
 app.include_router(data.router)
 app.include_router(salesforce.router)
 app.include_router(heartbeat.router)
+app.include_router(billing.router)
+app.include_router(stripe_webhook.router)
 
 # Serve static files
 app.mount("/static", StaticFiles(directory="app/static"), name="static")

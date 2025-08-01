@@ -1,0 +1,276 @@
+{% extends "base_dashboard.html" %}
+
+{% block title %}Subscription Management{% endblock %}
+
+{% block extra_head %}
+<script src="https://js.stripe.com/v3/"></script>
+<style>
+    .plan-card {
+        border: 2px solid #e0e0e0;
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+        transition: all 0.3s;
+    }
+    .plan-card:hover {
+        border-color: #4f8cff;
+        box-shadow: 0 4px 16px rgba(79, 140, 255, 0.1);
+    }
+    .plan-card.active {
+        border-color: #38c6ff;
+        background: linear-gradient(135deg, #f8fbff 0%, #e8f4ff 100%);
+    }
+    .quota-bar {
+        background: #e0e0e0;
+        border-radius: 6px;
+        height: 8px;
+        overflow: hidden;
+    }
+    .quota-progress {
+        background: linear-gradient(90deg, #4f8cff 0%, #38c6ff 100%);
+        height: 100%;
+        transition: width 0.3s;
+    }
+    .quota-info {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="card">
+        <h1 class="mb-4">Subscription Management</h1>
+        
+        <!-- Current Usage Section -->
+        <div class="quota-info">
+            <h5>Current Usage</h5>
+            <div id="usage-info">
+                <p class="mb-2">Loading usage information...</p>
+            </div>
+            <div class="quota-bar mb-2">
+                <div class="quota-progress" id="quota-progress" style="width: 0%"></div>
+            </div>
+            <small class="text-muted" id="quota-text">0 / 0 operations used this month</small>
+        </div>
+
+        <!-- Current Subscription Section -->
+        <div id="current-subscription" style="display: none;">
+            <h5>Current Plan</h5>
+            <div id="subscription-info" class="mb-4">
+                <!-- Subscription details will be loaded here -->
+            </div>
+        </div>
+
+        <!-- Available Plans Section -->
+        <h5>Available Plans</h5>
+        <div id="plans-container">
+            <p>Loading plans...</p>
+        </div>
+
+        <!-- One-time Quota Purchase -->
+        <div class="mt-4">
+            <h5>Purchase Additional Operations</h5>
+            <p class="text-muted">Need more operations? Purchase additional quota for $0.10 per operation.</p>
+            <div class="row">
+                <div class="col-md-6">
+                    <input type="number" class="form-control" id="quota-amount" placeholder="Number of operations" min="1" max="1000">
+                </div>
+                <div class="col-md-6">
+                    <button class="btn btn-outline-primary" onclick="purchaseQuota()">Purchase Quota</button>
+                </div>
+            </div>
+            <small class="text-muted">Total cost: $<span id="quota-cost">0.00</span></small>
+        </div>
+    </div>
+</div>
+
+<script>
+// Initialize Stripe
+const stripe = Stripe('{{ stripe_public_key }}');
+
+// Global variables
+let currentSubscription = null;
+let currentUsage = null;
+
+// Load initial data
+document.addEventListener('DOMContentLoaded', function() {
+    loadUsage();
+    loadSubscription();
+    loadPlans();
+});
+
+// Load current usage
+async function loadUsage() {
+    try {
+        const response = await fetch('/billing/usage');
+        if (response.ok) {
+            currentUsage = await response.json();
+            updateUsageDisplay();
+        }
+    } catch (error) {
+        console.error('Error loading usage:', error);
+    }
+}
+
+// Load current subscription
+async function loadSubscription() {
+    try {
+        const response = await fetch('/billing/subscription');
+        if (response.ok) {
+            currentSubscription = await response.json();
+            updateSubscriptionDisplay();
+        }
+    } catch (error) {
+        console.error('Error loading subscription:', error);
+    }
+}
+
+// Load available plans
+async function loadPlans() {
+    try {
+        const response = await fetch('/billing/plans');
+        if (response.ok) {
+            const plans = await response.json();
+            displayPlans(plans);
+        }
+    } catch (error) {
+        console.error('Error loading plans:', error);
+    }
+}
+
+// Update usage display
+function updateUsageDisplay() {
+    if (!currentUsage) {
+        document.getElementById('usage-info').innerHTML = '<p class="text-warning">No usage data found. You may need to subscribe to a plan.</p>';
+        return;
+    }
+
+    const usagePercent = (currentUsage.quota_used / currentUsage.quota_limit) * 100;
+    document.getElementById('quota-progress').style.width = `${Math.min(usagePercent, 100)}%`;
+    document.getElementById('quota-text').textContent = 
+        `${currentUsage.quota_used} / ${currentUsage.quota_limit} operations used this month`;
+    
+    let statusClass = 'text-success';
+    if (usagePercent > 80) statusClass = 'text-warning';
+    if (usagePercent >= 100) statusClass = 'text-danger';
+    
+    document.getElementById('usage-info').innerHTML = `
+        <p class="mb-1"><strong>Remaining:</strong> <span class="${statusClass}">${currentUsage.quota_remaining} operations</span></p>
+        <p class="mb-0"><small class="text-muted">Carryover from previous month: ${currentUsage.carryover_from_previous}</small></p>
+    `;
+}
+
+// Update subscription display
+function updateSubscriptionDisplay() {
+    if (currentSubscription) {
+        document.getElementById('current-subscription').style.display = 'block';
+        document.getElementById('subscription-info').innerHTML = `
+            <div class="alert alert-info">
+                <strong>Plan:</strong> ${currentSubscription.plan.name} 
+                (${currentSubscription.plan.price_cents === 0 ? 'Free' : '$' + (currentSubscription.plan.price_cents / 100).toFixed(2) + '/month'})
+                <br>
+                <strong>Status:</strong> ${currentSubscription.status}
+                <br>
+                <strong>Current Period:</strong> ${new Date(currentSubscription.current_period_start).toLocaleDateString()} - 
+                ${new Date(currentSubscription.current_period_end).toLocaleDateString()}
+            </div>
+        `;
+    }
+}
+
+// Display plans
+function displayPlans(plans) {
+    const container = document.getElementById('plans-container');
+    container.innerHTML = '';
+    
+    plans.forEach(plan => {
+        const isCurrentPlan = currentSubscription && currentSubscription.plan_id === plan.id;
+        const planCard = document.createElement('div');
+        planCard.className = `plan-card ${isCurrentPlan ? 'active' : ''}`;
+        planCard.innerHTML = `
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h6 class="mb-1">${plan.name}</h6>
+                    <p class="mb-0 text-muted">${plan.monthly_quota} operations per month</p>
+                </div>
+                <div class="col-md-2">
+                    <strong>${plan.price_cents === 0 ? 'Free' : '$' + (plan.price_cents / 100).toFixed(2) + '/mo'}</strong>
+                </div>
+                <div class="col-md-2">
+                    ${isCurrentPlan ? 
+                        '<span class="badge bg-success">Current</span>' : 
+                        `<button class="btn btn-sm btn-primary" onclick="subscribeToPlan(${plan.id})">Select</button>`
+                    }
+                </div>
+            </div>
+        `;
+        container.appendChild(planCard);
+    });
+}
+
+// Subscribe to plan
+async function subscribeToPlan(planId) {
+    try {
+        const response = await fetch(`/billing/subscribe/${planId}`, { method: 'POST' });
+        const result = await response.json();
+        
+        if (response.ok) {
+            alert('Successfully subscribed to plan!');
+            location.reload();
+        } else {
+            alert('Error: ' + (result.detail.message || result.detail));
+        }
+    } catch (error) {
+        console.error('Error subscribing:', error);
+        alert('An error occurred while subscribing.');
+    }
+}
+
+// Calculate quota cost
+document.getElementById('quota-amount').addEventListener('input', function(e) {
+    const amount = parseInt(e.target.value) || 0;
+    const cost = (amount * 0.10).toFixed(2);
+    document.getElementById('quota-cost').textContent = cost;
+});
+
+// Purchase additional quota
+async function purchaseQuota() {
+    const amount = parseInt(document.getElementById('quota-amount').value);
+    if (!amount || amount < 1) {
+        alert('Please enter a valid number of operations.');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/billing/purchase-quota', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ quota_amount: amount })
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            // Handle Stripe payment
+            const { error } = await stripe.confirmCardPayment(result.client_secret);
+            
+            if (error) {
+                alert('Payment failed: ' + error.message);
+            } else {
+                alert('Payment successful! Your quota has been updated.');
+                loadUsage();
+            }
+        } else {
+            alert('Error: ' + result.detail);
+        }
+    } catch (error) {
+        console.error('Error purchasing quota:', error);
+        alert('An error occurred while processing payment.');
+    }
+}
+</script>
+{% endblock %}
