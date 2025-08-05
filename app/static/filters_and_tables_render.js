@@ -1,4 +1,4 @@
-const Filters = {
+export const Filters = {
     offset: 0,
     limit: 10,
     isLoading: false,

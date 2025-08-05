@@ -1,3 +1,5 @@
+import { Filters } from "./filters_and_tables_render.js";
+
 const Upload = {
     compressImage: async function (file, maxWidth = 1000, maxHeight = 1000, quality = 0.7) {
         return new Promise((resolve, reject) => {
@@ -188,11 +190,14 @@ const Upload = {
                 }
 
                 // Dynamically refresh the table if Filters is available
-                if (window.Filters && typeof Filters.fetchData === "function") {
+                if (typeof Filters.fetchData === "function") {
                     Filters.offset = 0;
                     Filters.hasMoreData = true;
                     await Filters.fetchData(false);
+                } else {
+                    console.warn("Filters module not available, skipping table refresh.");
                 }
+
             } else {
                 let errorMsg = "❌ Upload failed.";
                 try {
