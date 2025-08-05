@@ -22,24 +22,22 @@ class OCRResult(SQLModel, table=True):
     )
     id: int = Field(default=None, primary_key=True)
     extracted_text: str | None = Field(default=None, max_length=250)
-    dot_reading: str | None = Field(default=None, max_length=32, foreign_key="carrierdata.usdot")
+    dot_reading: str | None = Field(default=None, max_length=32)
     filename: str = Field(nullable=False, max_length=250)
     timestamp: datetime = Field(nullable=False)
     user_id: str = Field(nullable=False, foreign_key="appuser.user_id")
     org_id: str = Field(nullable=False, foreign_key="apporg.org_id")
+    lookup_success_flag: bool = Field(default=False, nullable=False)
     
-    carrier_data: Optional["CarrierData"] = Relationship(back_populates="ocr_results")
     app_user: "AppUser" = Relationship(back_populates="ocr_results")
     app_org: "AppOrg" = Relationship(back_populates="ocr_results")
 
 class OCRResultResponse(SQLModel):
     """Schema for returning OCR result data."""
     dot_reading: str | None
-    legal_name: str | None
-    phone: str | None
-    mailing_address: str | None
     timestamp: str
     filename: str
+    lookup_success_flag: bool
     user_id: str
     org_id: str
     

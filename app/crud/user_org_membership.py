@@ -10,8 +10,8 @@ def save_user_org_membership(db: Session, login_info) -> AppUser:
     """Save a User record to the database."""
     try:
 
-        user_id = login_info['userinfo']['sub']
-        user_email = login_info['userinfo']['email']
+        user_id = login_info['sub']
+        user_email = login_info['email']
 
         user_record = AppUser(
             user_id=user_id,

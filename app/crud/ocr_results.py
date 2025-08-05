@@ -71,15 +71,11 @@ def get_ocr_results(db: Session,
                     org_id: str = None,
                     offset: int = None, 
                     limit: int = None, 
-                    valid_dot_only: bool = True,
-                    eager_relations:bool = False) -> dict:
+                    valid_dot_only: bool = True) -> dict:
     """Retrieves OCR results with a valid DOT number."""
 
     query = db.query(OCRResult)
-    if eager_relations:
-        logger.info("🔍 Eager loading carrier data for OCR results.")
-        query = query.options(joinedload(OCRResult.carrier_data))
-        
+
     if org_id:
         logger.info(f"🔍 Filtering OCR results by org ID: {org_id}")
         query = query.filter(OCRResult.org_id == org_id)

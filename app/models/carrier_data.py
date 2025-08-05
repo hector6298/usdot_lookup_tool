@@ -235,5 +235,4 @@ class CarrierData(SQLModel, table=True):
     url: Optional[str] = None
 
     # Relationship attributes
-    ocr_results: List["OCRResult"] = Relationship(back_populates="carrier_data")
     sync_status: List["CRMObjectSyncStatus"] = Relationship(back_populates="carrier_data", cascade_delete=True)
