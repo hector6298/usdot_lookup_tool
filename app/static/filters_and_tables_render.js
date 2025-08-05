@@ -195,10 +195,8 @@ const RowTemplates = {
         return `
             <tr>
                 <td><a href="/dashboards/carrier_details/${history.dot_reading}" class="dot-link">${history.dot_reading}</a></td>
-                <td>${history.legal_name}</td>
-                <td>${history.phone}</td>
-                <td>${history.mailing_address}</td>
                 <td>${history.timestamp}</td>
+                <td>${history.lookup_success_flag ? '<span class="badge bg-success">Success</span>' : '<span class="badge bg-danger">Failed</span>'}</td>
                 <td>${history.filename}</td>
                 <td>${history.user_id}</td>
                 <td>${history.org_id}</td>

@@ -104,19 +104,16 @@ async def fetch_lookup_history(request: Request,
 
     logger.info("🔍 Fetching lookup history data...")
     results = get_ocr_results(db, 
-                                    org_id=org_id,
-                                    offset=offset,
-                                    limit=limit,
-                                    valid_dot_only=valid_dot_only,
-                                    eager_relations=True)
+                            org_id=org_id,
+                            offset=offset,
+                            limit=limit,
+                            valid_dot_only=valid_dot_only)
     
     results = [
         OCRResultResponse(dot_reading=result.dot_reading,
-                          legal_name=result.carrier_data.legal_name if result.carrier_data else "",
-                          phone=result.carrier_data.phone if result.carrier_data else "",
-                          mailing_address=result.carrier_data.mailing_address if result.carrier_data else "",
                           timestamp=result.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
                           filename=result.filename,
+                          lookup_success_flag=result.lookup_success_flag,
                           user_id=result.app_user.user_email,
                           org_id=result.app_org.org_name)
         for result in results
@@ -187,20 +184,18 @@ async def export_lookup_history(request: Request, db: Session = Depends(get_db))
 
     # Write header
     ws.append([
-        "DOT Number", "Legal Name", "Phone Number", "Mailing Address",
-        "Created At", "Filename", "Created By"
+        "DOT Number", "Legal Name", "Phone Number", "Created At", "Filename", "Created By", "Organization"
     ])
 
     # Write data rows
     for result in results:
         ws.append([
             result.dot_reading,
-            result.carrier_data.legal_name if result.carrier_data else "",
-            result.carrier_data.phone if result.carrier_data else "",
-            result.carrier_data.mailing_address if result.carrier_data else "",
+
             result.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
             result.filename,
             result.app_user.user_email if hasattr(result.app_user, "user_email") else "",
+            result.app_org.org_name if hasattr(result.app_org, "org_name") else ""
         ])
 
     # Save to in-memory bytes buffer
