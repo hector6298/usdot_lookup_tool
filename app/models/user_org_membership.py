@@ -5,7 +5,6 @@ from sqlmodel import Relationship
 if TYPE_CHECKING:
     from app.models.ocr_results import OCRResult
     from app.models.crm_object_sync_status import CRMObjectSyncStatus
-    from app.models.subscription import SubscriptionMapping
 
 class AppUser(SQLModel, table=True):
     """Represents an application user in the database."""
@@ -19,7 +18,6 @@ class AppUser(SQLModel, table=True):
     ocr_results: List["OCRResult"] = Relationship(back_populates="app_user")
     crm_object_sync_status_usr: List["CRMObjectSyncStatus"] = Relationship(back_populates="app_user")
     user_org_membership: List["UserOrgMembership"] = Relationship(back_populates="app_user")
-    subscription_mappings: List["SubscriptionMapping"] = Relationship(back_populates="app_user")
 
 class AppOrg(SQLModel, table=True):
     """Represents an organization in the database."""
@@ -30,7 +28,6 @@ class AppOrg(SQLModel, table=True):
     user_org_membership: List["UserOrgMembership"] = Relationship(back_populates="app_org")
     crm_object_sync_status_org: List["CRMObjectSyncStatus"] = Relationship(back_populates="app_org")
     ocr_results: List["OCRResult"] = Relationship(back_populates="app_org")
-    subscription_mappings: List["SubscriptionMapping"] = Relationship(back_populates="app_org")
 
 class UserOrgMembership(SQLModel, table=True):
     """Represents a user's membership in an organization."""

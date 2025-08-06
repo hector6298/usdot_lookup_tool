@@ -1,11 +1,7 @@
 import os
 import logging
 import stripe
-from datetime import datetime
 from fastapi import APIRouter, Request, HTTPException
-from sqlmodel import Session
-from app.database import get_db
-from app.crud.subscription import get_user_subscription_mapping
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -55,13 +51,13 @@ async def stripe_webhook(request: Request):
 
 
 async def handle_invoice_payment_succeeded(invoice):
-    """Handle successful subscription payment - minimal logging for metered billing."""
+    """Handle successful subscription payment - just log since Stripe manages everything."""
     try:
         subscription_id = invoice.get('subscription')
         if not subscription_id:
             return
             
-        # Get Stripe subscription
+        # Get Stripe subscription for logging
         stripe_subscription = stripe.Subscription.retrieve(subscription_id)
         metadata = stripe_subscription.get('metadata', {})
         
@@ -77,7 +73,7 @@ async def handle_invoice_payment_succeeded(invoice):
 
 
 async def handle_subscription_updated(stripe_subscription):
-    """Handle subscription updates - mainly for logging since Stripe manages state."""
+    """Handle subscription updates - just log since Stripe manages state."""
     try:
         metadata = stripe_subscription.get('metadata', {})
         user_id = metadata.get('user_id')
@@ -86,39 +82,22 @@ async def handle_subscription_updated(stripe_subscription):
         if user_id and org_id:
             stripe_status = stripe_subscription.get('status')
             logger.info(f"Subscription updated for user {user_id}: {stripe_status}")
-            
-            # If subscription is cancelled, we might want to clean up the mapping
-            if stripe_status == 'canceled':
-                from app.database import get_db
-                db = next(get_db())
-                mapping = get_user_subscription_mapping(db, user_id, org_id)
-                if mapping:
-                    # Remove the mapping since subscription is cancelled
-                    db.delete(mapping)
-                    db.commit()
-                    logger.info(f"Removed subscription mapping for cancelled subscription: user {user_id}")
+            # No local state to manage - Stripe handles everything
                 
     except Exception as e:
         logger.error(f"Error handling subscription update: {e}")
 
 
 async def handle_subscription_deleted(stripe_subscription):
-    """Handle subscription cancellation - clean up local mapping."""
+    """Handle subscription cancellation - just log since no local state to clean up."""
     try:
         metadata = stripe_subscription.get('metadata', {})
         user_id = metadata.get('user_id')
         org_id = metadata.get('org_id')
         
         if user_id and org_id:
-            from app.database import get_db
-            db = next(get_db())
-            mapping = get_user_subscription_mapping(db, user_id, org_id)
-            
-            if mapping:
-                # Remove the mapping since subscription is deleted
-                db.delete(mapping)
-                db.commit()
-                logger.info(f"Removed subscription mapping for deleted subscription: user {user_id}")
+            logger.info(f"Subscription deleted for user {user_id}")
+            # No local state to clean up - Stripe manages everything
                 
     except Exception as e:
         logger.error(f"Error handling subscription deletion: {e}")

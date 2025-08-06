@@ -8,7 +8,7 @@ from app.database import get_db
 from app.models.ocr_results import OCRResultCreate, OCRResult
 from app.crud.ocr_results import save_ocr_results_bulk
 from app.crud.carrier_data import save_carrier_data_bulk
-from app.crud.subscription import get_user_subscription_mapping, report_usage_to_stripe, get_current_usage_from_stripe
+from app.helpers import stripe as stripe_helper
 from app.helpers.ocr import cloud_ocr_from_image_file, generate_dot_record
 from app.helpers.safer_web import safer_web_lookup_from_dot
 from app.routes.auth import verify_login
@@ -54,9 +54,9 @@ async def upload_file(files: list[UploadFile] = File(None),
     if files:
         total_operations += len(files)
     
-    # Check if user has active subscription
-    mapping = get_user_subscription_mapping(db, user_id, org_id)
-    if not mapping:
+    # Check if user has active subscription using Stripe directly
+    subscription = stripe_helper.find_user_subscription(user_id, org_id)
+    if not subscription:
         raise HTTPException(
             status_code=403,
             detail={
@@ -157,7 +157,7 @@ async def upload_file(files: list[UploadFile] = File(None),
         
         # Report usage to Stripe after successful processing
         operations_used = len(ocr_results)
-        usage_reported = report_usage_to_stripe(mapping, operations_used)
+        usage_reported = stripe_helper.report_usage(user_id, org_id, operations_used)
         if not usage_reported:
             logger.warning(f"Failed to report usage to Stripe for user {user_id}, org {org_id}")
 
@@ -174,7 +174,7 @@ async def upload_file(files: list[UploadFile] = File(None),
     ]
     
     # Get current usage information from Stripe
-    usage_data = get_current_usage_from_stripe(mapping)
+    usage_data = stripe_helper.get_user_usage(user_id, org_id)
     usage_info = {
         "usage_count": usage_data['usage_count'] if usage_data else 0,
         "period_start": usage_data['period_start'].isoformat() if usage_data else None,
