@@ -1,6 +1,6 @@
 import logging
 from sqlmodel import Session
-from app.models.user_org_membership import AppUser, AppOrg, UserOrgMembership
+from app.models.user_org_membership import AppUser, AppOrg, UserOrgMembership, UserRole
 from fastapi import HTTPException
 
 # Set up a module-level logger
@@ -24,14 +24,28 @@ def save_user_org_membership(db: Session, login_info) -> AppUser:
             org_id=login_info.get('org_id', user_id),
             org_name=login_info.get('org_name', user_email)
         )
+        # Determine role: if it's the first user in the organization, make them a manager
+        existing_org = db.query(AppOrg).filter(AppOrg.org_id == org_record.org_id).first()
+        existing_membership_count = 0
+        if existing_org:
+            existing_membership_count = db.query(UserOrgMembership).filter(
+                UserOrgMembership.org_id == org_record.org_id,
+                UserOrgMembership.is_active == True
+            ).count()
+        
+        # First user in the organization becomes a manager, others are regular users
+        user_role = UserRole.MANAGER if existing_membership_count == 0 else UserRole.USER
+        
         membership_record = UserOrgMembership(
             user_id=user_record.user_id, 
-            org_id=org_record.org_id
+            org_id=org_record.org_id,
+            role=user_role
         )
         
         #check if records already exist
         existing_user = db.query(AppUser).filter(AppUser.user_id == user_record.user_id).first()
-        existing_org = db.query(AppOrg).filter(AppOrg.org_id == org_record.org_id).first()
+        if not existing_org:  # We already checked this above
+            existing_org = db.query(AppOrg).filter(AppOrg.org_id == org_record.org_id).first()
         existing_membership = db.query(UserOrgMembership).filter(UserOrgMembership.user_id == user_record.user_id,
                                                                  UserOrgMembership.org_id == org_record.org_id).first()
         if existing_user:

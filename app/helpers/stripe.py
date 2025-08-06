@@ -10,12 +10,12 @@ logger = logging.getLogger(__name__)
 stripe.api_key = os.environ.get('STRIPE_SB_SK', 'sk_test_')
 
 
-def find_user_subscription(user_id: str, org_id: str) -> Optional[stripe.Subscription]:
-    """Find user's active subscription using Stripe search."""
+def find_org_subscription(org_id: str) -> Optional[stripe.Subscription]:
+    """Find organization's active subscription using Stripe search."""
     try:
-        # Search for subscriptions with user metadata
+        # Search for subscriptions with organization metadata
         subscriptions = stripe.Subscription.search(
-            query=f'metadata["user_id"]:"{user_id}" AND metadata["org_id"]:"{org_id}" AND status:"active"'
+            query=f'metadata["org_id"]:"{org_id}" AND status:"active"'
         )
         
         if subscriptions.data:
@@ -24,38 +24,32 @@ def find_user_subscription(user_id: str, org_id: str) -> Optional[stripe.Subscri
         return None
         
     except stripe.error.StripeError as e:
-        logger.error(f"Error searching for user subscription: {e}")
+        logger.error(f"Error searching for organization subscription: {e}")
         return None
 
 
-def find_or_create_customer(user_id: str, org_id: str, email: str) -> Optional[stripe.Customer]:
-    """Find existing customer or create new one with user metadata."""
+def find_or_create_customer(org_id: str, org_name: str) -> Optional[stripe.Customer]:
+    """Find existing customer or create new one with organization metadata."""
     try:
-        # Search for existing customer by email
-        customers = stripe.Customer.list(
-            email=email,
-            limit=1
+        # Search for existing customer by organization metadata
+        customers = stripe.Customer.search(
+            query=f'metadata["org_id"]:"{org_id}"'
         )
         
         if customers.data:
             customer = customers.data[0]
-            # Update metadata if needed
-            if (customer.metadata.get('user_id') != user_id or 
-                customer.metadata.get('org_id') != org_id):
+            # Update name if needed
+            if customer.name != org_name:
                 stripe.Customer.modify(
                     customer.id,
-                    metadata={
-                        'user_id': user_id,
-                        'org_id': org_id
-                    }
+                    name=org_name
                 )
             return customer
         
-        # Create new customer
+        # Create new customer for organization
         customer = stripe.Customer.create(
-            email=email,
+            name=org_name,
             metadata={
-                'user_id': user_id,
                 'org_id': org_id
             }
         )
@@ -104,8 +98,8 @@ def get_subscription_plans() -> List[Dict[str, Any]]:
         return []
 
 
-def create_subscription(user_id: str, org_id: str, email: str, price_id: str) -> Optional[stripe.Subscription]:
-    """Create a new subscription with metered billing."""
+def create_subscription(org_id: str, org_name: str, price_id: str) -> Optional[stripe.Subscription]:
+    """Create a new subscription with metered billing for an organization."""
     try:
         # Validate that the price exists and is for a subscription plan
         price = stripe.Price.retrieve(price_id, expand=['product'])
@@ -113,16 +107,16 @@ def create_subscription(user_id: str, org_id: str, email: str, price_id: str) ->
             logger.error(f"Price {price_id} is not a subscription plan")
             return None
         
-        # Find or create customer
-        customer = find_or_create_customer(user_id, org_id, email)
+        # Find or create customer for organization
+        customer = find_or_create_customer(org_id, org_name)
         if not customer:
             logger.error("Failed to find or create customer")
             return None
         
-        # Check if user already has an active subscription
-        existing_subscription = find_user_subscription(user_id, org_id)
+        # Check if organization already has an active subscription
+        existing_subscription = find_org_subscription(org_id)
         if existing_subscription:
-            logger.error(f"User {user_id} already has an active subscription")
+            logger.error(f"Organization {org_id} already has an active subscription")
             return None
         
         # Create Stripe subscription with metered billing
@@ -132,13 +126,12 @@ def create_subscription(user_id: str, org_id: str, email: str, price_id: str) ->
                 'price': price_id,
             }],
             metadata={
-                'user_id': user_id,
                 'org_id': org_id,
                 'product_id': price.product.id
             }
         )
         
-        logger.info(f"Created subscription {subscription.id} for user {user_id}")
+        logger.info(f"Created subscription {subscription.id} for organization {org_id}")
         return subscription
         
     except stripe.error.StripeError as e:
@@ -146,13 +139,13 @@ def create_subscription(user_id: str, org_id: str, email: str, price_id: str) ->
         return None
 
 
-def report_usage(user_id: str, org_id: str, usage_quantity: int = 1) -> bool:
+def report_usage(org_id: str, usage_quantity: int = 1) -> bool:
     """Report usage to Stripe for metered billing."""
     try:
-        # Find user's subscription
-        subscription = find_user_subscription(user_id, org_id)
+        # Find organization's subscription
+        subscription = find_org_subscription(org_id)
         if not subscription:
-            logger.warning(f"No active subscription found for user {user_id}")
+            logger.warning(f"No active subscription found for organization {org_id}")
             return False
         
         if not subscription.items.data:
@@ -170,7 +163,7 @@ def report_usage(user_id: str, org_id: str, usage_quantity: int = 1) -> bool:
             action='increment'
         )
         
-        logger.info(f"Reported {usage_quantity} usage to Stripe for user {user_id}")
+        logger.info(f"Reported {usage_quantity} usage to Stripe for organization {org_id}")
         return True
         
     except stripe.error.StripeError as e:
@@ -178,11 +171,11 @@ def report_usage(user_id: str, org_id: str, usage_quantity: int = 1) -> bool:
         return False
 
 
-def get_user_usage(user_id: str, org_id: str) -> Optional[Dict[str, Any]]:
-    """Get current usage data from Stripe."""
+def get_org_usage(org_id: str) -> Optional[Dict[str, Any]]:
+    """Get current usage data from Stripe for an organization."""
     try:
-        # Find user's subscription
-        subscription = find_user_subscription(user_id, org_id)
+        # Find organization's subscription
+        subscription = find_org_subscription(org_id)
         if not subscription:
             return None
         
@@ -224,10 +217,10 @@ def get_user_usage(user_id: str, org_id: str) -> Optional[Dict[str, Any]]:
         return None
 
 
-def get_subscription_details(user_id: str, org_id: str) -> Optional[Dict[str, Any]]:
-    """Get full subscription details from Stripe."""
+def get_subscription_details(org_id: str) -> Optional[Dict[str, Any]]:
+    """Get full subscription details from Stripe for an organization."""
     try:
-        subscription = find_user_subscription(user_id, org_id)
+        subscription = find_org_subscription(org_id)
         if not subscription:
             return None
         
@@ -259,11 +252,11 @@ def get_subscription_details(user_id: str, org_id: str) -> Optional[Dict[str, An
         return None
 
 
-def get_user_invoices(user_id: str, org_id: str) -> List[Any]:
-    """Get user's Stripe invoices."""
+def get_org_invoices(org_id: str) -> List[Any]:
+    """Get organization's Stripe invoices."""
     try:
-        # Find user's subscription to get customer ID
-        subscription = find_user_subscription(user_id, org_id)
+        # Find organization's subscription to get customer ID
+        subscription = find_org_subscription(org_id)
         if not subscription:
             return []
         
@@ -280,10 +273,10 @@ def get_user_invoices(user_id: str, org_id: str) -> List[Any]:
         return []
 
 
-def cancel_subscription(user_id: str, org_id: str) -> Optional[stripe.Subscription]:
-    """Cancel user's subscription at period end."""
+def cancel_subscription(org_id: str) -> Optional[stripe.Subscription]:
+    """Cancel organization's subscription at period end."""
     try:
-        subscription = find_user_subscription(user_id, org_id)
+        subscription = find_org_subscription(org_id)
         if not subscription:
             return None
         
@@ -293,7 +286,7 @@ def cancel_subscription(user_id: str, org_id: str) -> Optional[stripe.Subscripti
             cancel_at_period_end=True
         )
         
-        logger.info(f"Cancelled subscription {subscription.id} for user {user_id}")
+        logger.info(f"Cancelled subscription {subscription.id} for organization {org_id}")
         return cancelled_subscription
         
     except stripe.error.StripeError as e:

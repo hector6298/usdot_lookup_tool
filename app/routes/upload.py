@@ -11,6 +11,7 @@ from app.crud.carrier_data import save_carrier_data_bulk
 from app.helpers import stripe as stripe_helper
 from app.helpers.ocr import cloud_ocr_from_image_file, generate_dot_record
 from app.helpers.safer_web import safer_web_lookup_from_dot
+from app.helpers.auth_utils import is_user_manager
 from app.routes.auth import verify_login
 from google.cloud import vision
 from safer import CompanySnapshot
@@ -54,15 +55,24 @@ async def upload_file(files: list[UploadFile] = File(None),
     if files:
         total_operations += len(files)
     
-    # Check if user has active subscription using Stripe directly
-    subscription = stripe_helper.find_user_subscription(user_id, org_id)
+    # Check if organization has active subscription using Stripe directly
+    subscription = stripe_helper.find_org_subscription(org_id)
     if not subscription:
+        # Check if user is manager to show appropriate message
+        is_manager = is_user_manager(user_id, org_id, db)
+        
+        if is_manager:
+            message = "No active subscription found. Please subscribe to a plan to continue."
+        else:
+            message = "Your organization does not have an active subscription. Please contact your organization manager to subscribe to a plan."
+        
         raise HTTPException(
             status_code=403,
             detail={
                 "error": "no_subscription",
-                "message": "No active subscription found. Please subscribe to a plan to continue.",
-                "operations_needed": total_operations
+                "message": message,
+                "operations_needed": total_operations,
+                "is_manager": is_manager
             }
         )
     
@@ -157,9 +167,9 @@ async def upload_file(files: list[UploadFile] = File(None),
         
         # Report usage to Stripe after successful processing
         operations_used = len(ocr_results)
-        usage_reported = stripe_helper.report_usage(user_id, org_id, operations_used)
+        usage_reported = stripe_helper.report_usage(org_id, operations_used)
         if not usage_reported:
-            logger.warning(f"Failed to report usage to Stripe for user {user_id}, org {org_id}")
+            logger.warning(f"Failed to report usage to Stripe for organization {org_id}")
 
     # Collect all OCR result IDs
     ocr_result_ids = [
@@ -174,7 +184,7 @@ async def upload_file(files: list[UploadFile] = File(None),
     ]
     
     # Get current usage information from Stripe
-    usage_data = stripe_helper.get_user_usage(user_id, org_id)
+    usage_data = stripe_helper.get_org_usage(org_id)
     usage_info = {
         "usage_count": usage_data['usage_count'] if usage_data else 0,
         "period_start": usage_data['period_start'].isoformat() if usage_data else None,
