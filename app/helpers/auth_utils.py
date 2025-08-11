@@ -4,11 +4,13 @@ from fastapi import HTTPException, Request
 from sqlmodel import Session, select
 from app.models.user_org_membership import UserOrgMembership, UserRole
 from app.database import get_db
+from fastapi import Depends
 
 logger = logging.getLogger(__name__)
 
 
-def get_user_role(user_id: str, org_id: str, db: Session) -> UserRole:
+def get_user_role(user_id: str, org_id: str, 
+                  db: Session = Depends(get_db)) -> UserRole:
     """Get user's role in the organization."""
     try:
         statement = select(UserOrgMembership).where(
@@ -29,7 +31,8 @@ def get_user_role(user_id: str, org_id: str, db: Session) -> UserRole:
         return UserRole.USER
 
 
-def require_manager_role(request: Request, db: Session) -> dict:
+def require_manager_role(request: Request, 
+                         db: Session = Depends(get_db)) -> None:
     """
     Dependency that ensures the user has manager role.
     Returns user info if manager, raises HTTPException otherwise.
@@ -55,15 +58,11 @@ def require_manager_role(request: Request, db: Session) -> dict:
                 "current_role": user_role.value
             }
         )
-    
-    return request.session['userinfo']
-
 
 def get_org_name_from_request(request: Request) -> str:
     """Get organization name from request session."""
     # For now, use org_id as org_name - in a real app this would come from the organization table
-    org_id = request.session['userinfo'].get('org_id', request.session['userinfo']['sub'])
-    return f"Organization {org_id}"
+    return request.session['userinfo'].get('org_name', request.session['userinfo']['email'])
 
 
 def is_user_manager(user_id: str, org_id: str, db: Session) -> bool:

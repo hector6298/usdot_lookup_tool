@@ -9,7 +9,6 @@ logger = logging.getLogger(__name__)
 def save_user_org_membership(db: Session, login_info) -> AppUser:
     """Save a User record to the database."""
     try:
-
         user_id = login_info['userinfo']['sub']
         user_email = login_info['userinfo']['email']
 
@@ -24,6 +23,7 @@ def save_user_org_membership(db: Session, login_info) -> AppUser:
             org_id=login_info.get('org_id', user_id),
             org_name=login_info.get('org_name', user_email)
         )
+        
         # Determine role: if it's the first user in the organization, make them a manager
         existing_org = db.query(AppOrg).filter(AppOrg.org_id == org_record.org_id).first()
         existing_membership_count = 0
@@ -42,34 +42,46 @@ def save_user_org_membership(db: Session, login_info) -> AppUser:
             role=user_role
         )
         
-        #check if records already exist
+        # Check if records already exist
         existing_user = db.query(AppUser).filter(AppUser.user_id == user_record.user_id).first()
         if not existing_org:  # We already checked this above
             existing_org = db.query(AppOrg).filter(AppOrg.org_id == org_record.org_id).first()
-        existing_membership = db.query(UserOrgMembership).filter(UserOrgMembership.user_id == user_record.user_id,
-                                                                 UserOrgMembership.org_id == org_record.org_id).first()
+        existing_membership = db.query(UserOrgMembership).filter(
+            UserOrgMembership.user_id == user_record.user_id,
+            UserOrgMembership.org_id == org_record.org_id
+        ).first()
+        
         if existing_user:
             logger.info(f"🔍 User with ID {user_record.user_id} already exists. Updating fields.")
-            # update fields
-            for key, value in user_record.dict().items():
-                setattr(existing_user, key, value)
+            # Update specific fields manually to avoid enum conversion issues
+            existing_user.user_email = user_record.user_email
+            existing_user.name = user_record.name
+            existing_user.first_name = user_record.first_name
+            existing_user.last_name = user_record.last_name
             user_record = existing_user
+        else:
+            db.add(user_record)
+            
         if existing_org:
             logger.info(f"🔍 Org with ID {org_record.org_id} already exists. Updating fields.")
-            # update fields
-            for key, value in org_record.dict().items():
-                setattr(existing_org, key, value)
+            # Update specific fields manually
+            existing_org.org_name = org_record.org_name
             org_record = existing_org
+        else:
+            db.add(org_record)
+            
         if existing_membership:
-            logger.info(f"🔍 Membership for user {user_record.user_id} and org {org_record.org_id} already exists. Skipping.")
+            logger.info(f"🔍 Membership for user {user_record.user_id} and org {org_record.org_id} already exists. Updating role if needed.")
+            # Only update role if the user should be a manager and isn't already
+            if user_role == UserRole.MANAGER and existing_membership.role != UserRole.MANAGER:
+                existing_membership.role = UserRole.MANAGER
             membership_record = existing_membership
-        
+        else:
+            db.add(membership_record)
+
         # Commit User, Org and Membership records in a single transaction
         logger.info("🔍 Saving App, Org, and membership to the database.")
-        db.add(user_record)
-        db.add(org_record)
-        db.add(membership_record)
-
+        
         db.commit()
 
         db.refresh(user_record)
@@ -78,13 +90,9 @@ def save_user_org_membership(db: Session, login_info) -> AppUser:
 
         logger.info(f"✅ User {user_record.user_id}, Org {org_record.org_id}, and memberships saved.")
         
-        # Note: Users will create subscriptions manually via Stripe when needed
-        # No automatic subscription creation in the new Stripe-only approach
-            # Don't fail the entire user creation process if subscription creation fails
-        
         return user_record
+        
     except Exception as e:
         logger.error(f"❌ Error saving User, Org, Membership: {e}")
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
-    

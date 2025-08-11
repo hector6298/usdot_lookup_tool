@@ -16,10 +16,10 @@ logger = logging.getLogger(__name__)
 templates = Jinja2Templates(directory="app/templates")
 
 # Initialize APIRouter
-router = APIRouter(prefix="/billing", tags=["billing"])
+router = APIRouter(tags=["billing"])
 
 
-@router.get("/", response_class=HTMLResponse)
+@router.get("/billing", response_class=HTMLResponse)
 async def subscription_page(
     request: Request,
     _: dict = Depends(verify_login),
@@ -43,7 +43,7 @@ async def subscription_page(
     )
 
 
-@router.get("/plans")
+@router.get("/billing/plans")
 async def get_plans():
     """Get all available subscription plans from Stripe."""
     try:
@@ -54,11 +54,8 @@ async def get_plans():
         raise HTTPException(status_code=500, detail="Failed to fetch subscription plans")
 
 
-@router.get("/subscription")
-async def get_current_subscription(
-    request: Request,
-    _: dict = Depends(verify_login)
-):
+@router.get("/billing/subscription", dependencies=[Depends(verify_login)])
+async def get_current_subscription(request: Request):
     """Get current organization's subscription from Stripe."""
     try:
         org_id = request.session['userinfo'].get('org_id', request.session['userinfo']['sub'])
@@ -72,11 +69,8 @@ async def get_current_subscription(
         raise HTTPException(status_code=500, detail="Failed to fetch subscription")
 
 
-@router.get("/usage")
-async def get_current_usage(
-    request: Request,
-    _: dict = Depends(verify_login)
-):
+@router.get("/billing/usage", dependencies=[Depends(verify_login)])
+async def get_current_usage(request: Request):
     """Get current organization usage from Stripe."""
     try:
         org_id = request.session['userinfo'].get('org_id', request.session['userinfo']['sub'])
@@ -90,11 +84,10 @@ async def get_current_usage(
         raise HTTPException(status_code=500, detail="Failed to fetch usage")
 
 
-@router.post("/subscribe/{price_id}")
+@router.post("/billing/subscribe/{price_id}", dependencies=[Depends(require_manager_role)])
 async def subscribe_to_plan(
     price_id: str,
     request: Request,
-    _: dict = Depends(require_manager_role),
     db: Session = Depends(get_db)
 ):
     """Subscribe organization to a metered billing plan using Stripe price ID. Only managers can subscribe."""
@@ -121,11 +114,8 @@ async def subscribe_to_plan(
         raise HTTPException(status_code=500, detail="Failed to create subscription")
 
 
-@router.get("/invoices")
-async def get_org_invoices(
-    request: Request,
-    _: dict = Depends(verify_login)
-):
+@router.get("/billing/invoices", dependencies=[Depends(verify_login)])
+async def get_org_invoices(request: Request):
     """Get organization's Stripe invoices."""
     try:
         org_id = request.session['userinfo'].get('org_id', request.session['userinfo']['sub'])
@@ -139,10 +129,9 @@ async def get_org_invoices(
         raise HTTPException(status_code=500, detail="Failed to fetch invoices")
 
 
-@router.post("/cancel-subscription")
+@router.post("/billing/cancel-subscription", dependencies=[Depends(require_manager_role)])
 async def cancel_subscription(
     request: Request,
-    _: dict = Depends(require_manager_role),
     db: Session = Depends(get_db)
 ):
     """Cancel organization's subscription. Only managers can cancel."""

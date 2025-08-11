@@ -9,8 +9,8 @@ if TYPE_CHECKING:
 
 class UserRole(str, Enum):
     """User roles within an organization."""
-    USER = "user"  # Normal user - can use the app but cannot manage subscriptions
-    MANAGER = "manager"  # Manager - can subscribe to products for the organization
+    USER = "USER"  # Normal user - can use the app but cannot manage subscriptions
+    MANAGER = "MANAGER"  # Manager - can subscribe to products for the organization
 
 class AppUser(SQLModel, table=True):
     """Represents an application user in the database."""

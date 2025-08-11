@@ -1,6 +1,6 @@
 """Add role field to UserOrgMembership
 
-Revision ID: 001_add_role
+Revision ID: bb527a942f17
 Revises: e2c222aced9a
 Create Date: 2025-01-13 16:00:00.000000
 
@@ -11,7 +11,7 @@ from alembic import op
 import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
-revision: str = '001_add_role'
+revision: str = 'bb527a942f17'
 down_revision: Union[str, None] = 'e2c222aced9a'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
