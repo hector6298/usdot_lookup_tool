@@ -15,25 +15,48 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
+        /* Global Styles */
         body {
             font-family: 'Inter', Arial, sans-serif;
             background: linear-gradient(135deg, #23233a 0%, #2d2d4d 100%);
             min-height: 100vh;
             margin: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
+            padding: 20px 0;
             color: #23233a;
         }
-        .container {
-            text-align: center;
+
+        /* Main container for all cards */
+        .main-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 32px;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        /* Card base styles */
+        .card {
             background: rgba(255,255,255,0.97);
-            padding: 48px 32px 40px 32px;
             border-radius: 18px;
             box-shadow: 0 8px 32px rgba(44,62,80,0.12);
-            width: 90%;
-            max-width: 680px;
+            width: 100%;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
         }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 16px 48px rgba(44,62,80,0.18);
+        }
+
+        /* Hero card with logo and buttons */
+        .hero-card {
+            text-align: center;
+            padding: 48px 32px 40px 32px;
+            max-width: 800px;
+        }
+
         .logo-img {
             width: 120px;
             height: 120px;
@@ -41,6 +64,7 @@
             border-radius: 16px;
             box-shadow: 0 2px 8px rgba(44,62,80,0.08);
         }
+
         h1 {
             font-size: 2.2rem;
             font-weight: 700;
@@ -48,18 +72,21 @@
             margin-bottom: 10px;
             letter-spacing: -1px;
         }
-        h2 {
+
+        .subtitle {
             font-size: 1.1rem;
             color: #555;
             margin-bottom: 32px;
             font-weight: 400;
         }
+
         .btn-container {
             display: flex;
             justify-content: center;
             gap: 20px;
             margin-top: 28px;
         }
+
         .btn {
             display: inline-block;
             padding: 14px 36px;
@@ -68,13 +95,14 @@
             text-decoration: none;
             border-radius: 8px;
             font-weight: 600;
-            transition: background 0.2s, box-shadow 0.2s;
+            transition: all 0.3s ease;
             box-shadow: 0 2px 8px rgba(44,62,80,0.08);
         }
 
         .btn.login {
             background: #4CAF50;
         }
+
         .btn.signup {
             background: #2196F3;
         }
@@ -82,55 +110,247 @@
         .btn:hover {
             filter: brightness(0.95);
             box-shadow: 0 4px 16px rgba(44,62,80,0.12);
+            transform: translateY(-2px);
         }
-        
+
+        /* Features overview card */
+        .features-card {
+            padding: 40px 32px;
+            max-width: 800px;
+        }
+
+        .features-title {
+            text-align: center;
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #23233a;
+            margin-bottom: 32px;
+        }
+
         .features {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
             gap: 24px;
-            margin: 32px 0;
             text-align: center;
         }
-        
-/* Add this to your <style> section */
 
-    .feature {
-        padding: 20px 16px;
-        border: 2px solid #f0f6f1;           /* Green border */
-        border-radius: 12px;
-        background: #fff;                     /* White card */
-        box-shadow: 0 2px 8px rgba(44,62,80,0.06);
-        transition: box-shadow 0.2s, border-color 0.2s;
-    }
-    .feature:hover {
-        box-shadow: 0 4px 16px rgba(44,62,80,0.12);
-        border-color: #43a047;
-    }
-        
+        /* Feature cards with hover and click effects */
+        .feature {
+            padding: 24px 20px;
+            border: 2px solid #f0f6f1;
+            border-radius: 12px;
+            background: #fff;
+            box-shadow: 0 2px 8px rgba(44,62,80,0.06);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            color: inherit;
+        }
+
+        .feature:hover {
+            box-shadow: 0 8px 24px rgba(44,62,80,0.15);
+            border-color: #43a047;
+            transform: translateY(-3px);
+        }
+
         .feature i {
-            font-size: 2.5rem;
+            font-size: 2.8rem;
             color: #4CAF50;
-            margin-bottom: 12px;
+            margin-bottom: 16px;
+            transition: transform 0.3s ease;
+        }
+
+        .feature:hover i {
+            transform: scale(1.1);
         }
         
         .feature h3 {
-            font-size: 1.1rem;
+            font-size: 1.2rem;
             font-weight: 600;
             color: #23233a;
-            margin-bottom: 8px;
+            margin-bottom: 12px;
         }
         
         .feature p {
-            font-size: 0.9rem;
+            font-size: 0.95rem;
             color: #666;
-            line-height: 1.4;
+            line-height: 1.5;
             margin: 0;
         }
-        
+
+        /* How it works cards with animation */
+        .how-it-works-card {
+            padding: 48px 40px;
+            max-width: 900px;
+            opacity: 0;
+            transform: translateY(30px);
+            transition: all 0.6s ease;
+        }
+
+        .how-it-works-card.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .how-it-works-title {
+            text-align: center;
+            font-size: 2rem;
+            font-weight: 700;
+            color: #23233a;
+            margin-bottom: 16px;
+        }
+
+        .how-it-works-icon {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
+        .how-it-works-icon i {
+            font-size: 4rem;
+            color: #4CAF50;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .how-it-works-content {
+            text-align: center;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .how-it-works-content h3 {
+            font-size: 1.4rem;
+            color: #555;
+            margin-bottom: 24px;
+            font-weight: 400;
+        }
+
+        .steps-list {
+            text-align: left;
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 24px;
+            margin: 24px 0;
+        }
+
+        .step {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 16px;
+            padding: 12px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .step:last-child {
+            margin-bottom: 0;
+        }
+
+        .step-number {
+            background: #4CAF50;
+            color: white;
+            border-radius: 50%;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 0.9rem;
+            margin-right: 16px;
+            flex-shrink: 0;
+        }
+
+        .step-text {
+            font-size: 1rem;
+            color: #444;
+            line-height: 1.5;
+        }
+
+        /* Learn More card styles */
+        .learn-more-card {
+            padding: 40px 32px;
+            max-width: 800px;
+            text-align: center;
+        }
+
+        .learn-more-title {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #23233a;
+            margin-bottom: 20px;
+        }
+
+        .learn-more-content {
+            font-size: 1.1rem;
+            color: #555;
+            margin-bottom: 20px;
+        }
+
+        .learn-more-links {
+            display: flex;
+            justify-content: center;
+            gap: 32px;
+            flex-wrap: wrap;
+        }
+
+        .learn-more-link {
+            color: #2196F3;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 1.1rem;
+            transition: all 0.3s ease;
+        }
+
+        .learn-more-link:hover {
+            text-decoration: underline;
+            color: #1976D2;
+        }
+
+        .privacy-link {
+            margin-top: 24px;
+            font-size: 0.9rem;
+        }
+
+        .privacy-link a {
+            color: #777;
+            text-decoration: none;
+        }
+
+        .privacy-link a:hover {
+            text-decoration: underline;
+        }
+
+        .enterprise-note {
+            margin-top: 24px;
+            padding: 16px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #2196F3;
+        }
+
+        .enterprise-note p {
+            margin: 0;
+            font-size: 1rem;
+            color: #444;
+        }
+
+        .enterprise-note strong {
+            color: #2196F3;
+        }
+
+        /* Blog section */
         .blog-section {
             margin-top: 32px;
             padding-top: 24px;
             border-top: 1px solid #eee;
+            text-align: center;
         }
         
         .blog-section h3 {
@@ -148,66 +368,263 @@
         .blog-link:hover {
             text-decoration: underline;
         }
-        @media (max-width: 600px) {
-            .container {
-                padding: 24px 8px 24px 8px;
+
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .main-container {
+                padding: 0 10px;
+                gap: 24px;
             }
+
+            .hero-card {
+                padding: 32px 20px;
+            }
+
             .logo-img {
                 width: 80px;
                 height: 80px;
             }
+
             h1 {
-                font-size: 1.3rem;
+                font-size: 1.8rem;
             }
+
             .features {
                 grid-template-columns: 1fr;
                 gap: 16px;
-                margin: 24px 0;
             }
+
             .feature i {
-                font-size: 2rem;
+                font-size: 2.4rem;
+            }
+
+            .how-it-works-card {
+                padding: 32px 24px;
+            }
+
+            .how-it-works-icon i {
+                font-size: 3rem;
+            }
+
+            .learn-more-links {
+                flex-direction: column;
+                align-items: center;
+                gap: 16px;
+            }
+
+            .btn-container {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .btn {
+                width: 200px;
             }
         }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <img src="/static/logo/app_logo2.jpg" alt="USDOT Lookup Tool Logo" class="logo-img">
-    <h1>DotAI</h1>
-    <h2>Transform your trucking lead pipeline from USDOT number to trucking leads with zero data entry.</h2>
-    
-    <div class="features">
-        <div class="feature">
-            <i class="fas fa-camera"></i>
-            <h3>AI Vision</h3>
-            <p>Automatically extract USDOT numbers from images.</p>
+<div class="main-container">
+    <!-- Hero Card: Logo and Login/Signup -->
+    <div class="card hero-card">
+        <img src="/static/logo/app_logo2.jpg" alt="USDOT Lookup Tool Logo" class="logo-img">
+        <h1>DotAI</h1>
+        <h2 class="subtitle">Automate and scale your USDOT leads pipeline and sync to your CRM platform</h2>
+        
+        <div class="btn-container">
+            <a href="/login" class="btn login"><i class="fas fa-sign-in-alt"></i> Login</a>
+            <a href="/signup" class="btn signup"><i class="fas fa-user-plus"></i> Sign Up</a>
         </div>
-        <div class="feature">
-            <i class="fas fa-search"></i>
-            <h3>SAFER Web Lookups</h3>
-            <p>Instant data retrieval.</p>
-        </div>
-        <div class="feature">
-            <i class="fas fa-sync-alt"></i>
-            <h3>CRM Integration</h3>
-            <p>Seamless Salesforce integration. Just a few clicks.</p>
+        
+        <div class="enterprise-note">
+            <p><strong>Multi-user organizations?</strong> Talk to us!</p>
         </div>
     </div>
 
-    <div class="btn-container">
-        <a href="/login" class="btn login"><i class="fas fa-sign-in-alt"></i> Login</a>
-        <a href="/signup" class="btn signup"><i class="fas fa-user-plus"></i> Sign Up</a>
+    <!-- Features Overview Card -->
+    <div class="card features-card">
+        <h2 class="features-title">How DotAI Works</h2>
+        <div class="features">
+            <!-- Each feature card scrolls to its corresponding how-it-works section -->
+            <a href="#ai-vision" class="feature" onclick="scrollToSection('ai-vision')">
+                <i class="fas fa-camera"></i>
+                <h3>AI Vision</h3>
+                <p>Automatically extract USDOT numbers from images or input them manually.</p>
+            </a>
+            <a href="#safer-lookup" class="feature" onclick="scrollToSection('safer-lookup')">
+                <i class="fas fa-search"></i>
+                <h3>SAFER Web Lookups</h3>
+                <p>Instant automated data retrieval from FMCSA databases.</p>
+            </a>
+            <a href="#crm-integration" class="feature" onclick="scrollToSection('crm-integration')">
+                <i class="fas fa-sync-alt"></i>
+                <h3>CRM Integration</h3>
+                <p>Seamless Salesforce integration with just a few clicks.</p>
+            </a>
+        </div>
     </div>
-    
-    <div class="blog-section">
-        <h3>Learn More</h3>
-        <p><a href="/blog" class="blog-link">Read our blog</a> to discover how automated lead capture can revolutionize your trucking business pipeline</p>
-        <p style="margin-top: 16px; font-size: 0.9rem; color: #777;">
-            <a href="/privacy-policy" style="color: #777; text-decoration: none;">Privacy Policy</a>
+
+    <!-- How It Works: AI Vision -->
+    <div id="ai-vision" class="card how-it-works-card">
+        <div class="how-it-works-icon">
+            <i class="fas fa-camera"></i>
+        </div>
+        <div class="how-it-works-content">
+            <h2 class="how-it-works-title">AI Vision Technology</h2>
+            <h3>Take a picture of any truck and watch the magic happen</h3>
+            
+            <div class="steps-list">
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <div class="step-text">
+                        <strong>Capture or Upload:</strong> Take a photo of the truck's USDOT number with your phone or upload existing images
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <div class="step-text">
+                        <strong>AI Extraction:</strong> Our advanced OCR technology automatically identifies and extracts USDOT numbers from the image
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <div class="step-text">
+                        <strong>Manual Input Option:</strong> Can't capture a clear image? No problem! You can also manually input USDOT numbers
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- How It Works: SAFER Web Lookups -->
+    <div id="safer-lookup" class="card how-it-works-card">
+        <div class="how-it-works-icon">
+            <i class="fas fa-search"></i>
+        </div>
+        <div class="how-it-works-content">
+            <h2 class="how-it-works-title">Automated SAFER Web Lookups</h2>
+            <h3>We do the heavy lifting so you don't have to</h3>
+            
+            <div class="steps-list">
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <div class="step-text">
+                        <strong>Instant Processing:</strong> Once a USDOT number is extracted, our system automatically queries the FMCSA SAFER database
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <div class="step-text">
+                        <strong>Complete Carrier Data:</strong> Retrieve company name, address, phone numbers, authority status, and safety ratings
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <div class="step-text">
+                        <strong>Real-time Updates:</strong> Get the most current information directly from federal transportation databases
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- How It Works: CRM Integration -->
+    <div id="crm-integration" class="card how-it-works-card">
+        <div class="how-it-works-icon">
+            <i class="fas fa-sync-alt"></i>
+        </div>
+        <div class="how-it-works-content">
+            <h2 class="how-it-works-title">Seamless CRM Integration</h2>
+            <h3>From USDOT number to qualified lead in seconds</h3>
+            
+            <div class="steps-list">
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <div class="step-text">
+                        <strong>One-Click Connection:</strong> Navigate to your dashboard and click the "Connect to Salesforce" button
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <div class="step-text">
+                        <strong>Secure Authorization:</strong> Safely connect your Salesforce account with OAuth 2.0 authentication
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <div class="step-text">
+                        <strong>Automatic Sync:</strong> Hit the "CRM Sync" button and watch carrier records flow directly into your Salesforce pipeline
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Learn More Card -->
+    <div class="card learn-more-card">
+        <h2 class="learn-more-title">Learn More</h2>
+        <p class="learn-more-content">
+            Discover how automated lead capture can revolutionize your trucking business pipeline
         </p>
+        
+        <div class="learn-more-links">
+            <a href="/blog" class="learn-more-link">
+                <i class="fas fa-blog"></i> Read Our Blog
+            </a>
+        </div>
+        
+        <div class="privacy-link">
+            <a href="/privacy-policy">Privacy Policy</a>
+        </div>
     </div>
 </div>
+
+<script>
+    // Smooth scrolling function for feature cards
+    function scrollToSection(sectionId) {
+        const element = document.getElementById(sectionId);
+        if (element) {
+            element.scrollIntoView({ 
+                behavior: 'smooth',
+                block: 'center'
+            });
+        }
+    }
+
+    // Intersection Observer for animating how-it-works cards
+    const observerOptions = {
+        threshold: 0.2,
+        rootMargin: '0px 0px -50px 0px'
+    };
+
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.classList.add('visible');
+            }
+        });
+    }, observerOptions);
+
+    // Observe all how-it-works cards
+    document.addEventListener('DOMContentLoaded', () => {
+        const howItWorksCards = document.querySelectorAll('.how-it-works-card');
+        howItWorksCards.forEach(card => {
+            observer.observe(card);
+        });
+    });
+
+    // Prevent default anchor behavior since we're using custom scrolling
+    document.querySelectorAll('.feature').forEach(feature => {
+        feature.addEventListener('click', (e) => {
+            e.preventDefault();
+            const href = feature.getAttribute('href');
+            if (href && href.startsWith('#')) {
+                scrollToSection(href.substring(1));
+            }
+        });
+    });
+</script>
 
 </body>
 </html>
