@@ -24,6 +24,7 @@ class AppOrg(SQLModel, table=True):
     org_id: str = Field(primary_key=True)
     org_name: str
     is_active: bool = True
+    sf_domain: str | None = None  # Salesforce domain for this organization
 
     user_org_membership: List["UserOrgMembership"] = Relationship(back_populates="app_org")
     crm_object_sync_status_org: List["CRMObjectSyncStatus"] = Relationship(back_populates="app_org")

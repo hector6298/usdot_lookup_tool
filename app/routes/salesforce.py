@@ -1,10 +1,13 @@
-from fastapi import APIRouter, Request,HTTPException, Depends, Body
+from fastapi import APIRouter, Request,HTTPException, Depends, Form, Body
+from fastapi.templating import Jinja2Templates
 from sqlmodel import Session, select
 from fastapi.responses import RedirectResponse, JSONResponse
 from app.database import get_db
 from app.crud.oauth import get_valid_salesforce_token, upsert_salesforce_token, delete_salesforce_token
 from app.crud.crm_object_sync_history import create_sync_history_record
 from app.crud.crm_object_sync_status import update_crm_sync_status
+from app.crud.user_org_membership import get_sf_domain_by_org_id, save_sf_domain_for_org
+
 from app.models.carrier_data import CarrierData
 from datetime import datetime
 import urllib.parse
@@ -14,30 +17,85 @@ import os
 import time
 
 router = APIRouter()
+templates = Jinja2Templates(directory="app/templates")
 
 # Set up a module-level logger
 logger = logging.getLogger(__name__)
 
+@router.get("/salesforce/setup")
+async def salesforce_setup_page(request: Request):
+    """Display Salesforce setup page for entering domain."""
+    if 'userinfo' not in request.session:
+        return RedirectResponse(url="/login")
+    
+    return templates.TemplateResponse("salesforce_setup.html", {"request": request})
+
+@router.post("/salesforce/setup")
+async def save_salesforce_domain(
+    request: Request,
+    sf_domain: str = Body(..., embed=True),
+    db: Session = Depends(get_db)
+):
+    """Save Salesforce domain for the organization."""
+    if 'userinfo' not in request.session:
+        return JSONResponse(status_code=401, content={"detail": "User not authenticated."})
+    
+    user_id = request.session["userinfo"]["sub"]
+    org_id = request.session["userinfo"].get("org_id", user_id)
+    
+    # Validate the domain format
+    if not sf_domain or not sf_domain.strip():
+        return JSONResponse(status_code=400, content={"detail": "Salesforce domain is required."})
+    
+    # Clean up the domain (remove https://, trailing slashes, etc.)
+    clean_domain = sf_domain.replace("https://", "").replace("http://", "").rstrip("/")
+    
+    # Basic validation - should end with .salesforce.com or similar
+    if not any(clean_domain.endswith(suffix) for suffix in ['.salesforce.com', '.my.salesforce.com', '.lightning.force.com']):
+        return JSONResponse(status_code=400, content={"detail": "Invalid Salesforce domain format. Please enter your full Salesforce URL."})
+    
+    try:
+        # Save to your organization table
+        save_sf_domain_for_org(db, org_id, clean_domain)
+        
+        logger.info(f"Saved Salesforce domain {clean_domain} for org {org_id}")
+        return JSONResponse(content={"detail": "Salesforce domain saved successfully."})
+        
+    except Exception as e:
+        logger.error(f"Failed to save Salesforce domain: {str(e)}")
+        return JSONResponse(status_code=500, content={"detail": "Failed to save Salesforce domain."})
+
 @router.get("/salesforce/connect")
-async def connect_salesforce(request: Request):
+async def connect_salesforce(request: Request, db: Session = Depends(get_db)):
     """Redirects the user to Salesforce OAuth authorization page."""
     if 'userinfo' not in request.session:
         logger.error("Cannot call SF authorization. User not authenticated.")
         return JSONResponse(status_code=401, content={"detail": "User not authenticated."})
     
+    org_id = request.session['userinfo'].get('org_id', request.session['userinfo']['sub'])
+    org_sf_domain = get_sf_domain_by_org_id(org_id, db)
+    
+    # If no domain is configured, redirect to setup page
+    if not org_sf_domain:
+        logger.info(f"No Salesforce domain configured for organization {org_id}. Redirecting to setup.")
+        return RedirectResponse(url="/salesforce/setup")
+    
+    # Determine redirect URI
     if os.environ.get('ENVIRONMENT') == 'dev' and os.environ.get('NGROK_TUNNEL_URL', None):
         redirect_uri = os.environ.get('NGROK_TUNNEL_URL') + '/salesforce/callback'
+    elif os.environ.get('BASE_URL'):
+        redirect_uri = os.environ.get('BASE_URL') + '/salesforce/callback'
     else:
         redirect_uri = request.url_for("salesforce_callback")
 
     logger.info("Redirecting to Salesforce OAuth authorization page.")
-    # Prepare the OAuth authorization URL
+    
     params = {
         "response_type": "code",
         "client_id": os.environ.get('SF_CONSUMER_KEY'),
         "redirect_uri": redirect_uri
     }
-    sf_auth_url = f"https://{os.environ.get('SF_DOMAIN')}/services/oauth2/authorize?{urllib.parse.urlencode(params)}"
+    sf_auth_url = f"https://{org_sf_domain}/services/oauth2/authorize?{urllib.parse.urlencode(params)}"
     return RedirectResponse(sf_auth_url)
 
 

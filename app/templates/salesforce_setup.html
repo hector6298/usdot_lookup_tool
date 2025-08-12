@@ -1,0 +1,62 @@
+{% extends "base_dashboard.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h4><i class="fas fa-cloud"></i> Salesforce Setup</h4>
+                </div>
+                <div class="card-body">
+                    <p class="mb-4">Before connecting to Salesforce, we need to know your Salesforce domain. This is typically in the format <code>yourcompany.my.salesforce.com</code> or a custom domain like <code>yourcompany.lightning.force.com</code>.</p>
+                    
+                    {% if error %}
+                        <div class="alert alert-danger" role="alert">
+                            <i class="fas fa-exclamation-triangle"></i> {{ error }}
+                        </div>
+                    {% endif %}
+                    
+                    <form method="post" action="/salesforce/setup" id="salesforceSetupForm">
+                        <div class="mb-3">
+                            <label for="sf_domain" class="form-label">Salesforce Domain *</label>
+                            <input type="text" 
+                                   class="form-control" 
+                                   id="sf_domain" 
+                                   name="sf_domain" 
+                                   placeholder="yourcompany.my.salesforce.com"
+                                   value="{{ sf_domain or '' }}"
+                                   required>
+                            <div class="form-text">
+                                Enter your Salesforce domain without "https://". You can find this in your browser's address bar when logged into Salesforce.
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Save Domain
+                            </button>
+                        </div>
+                    </form>
+                    
+                    <hr class="my-4">
+                    
+                    <div class="alert alert-info" role="alert">
+                        <h6><i class="fas fa-info-circle"></i> How to find your Salesforce domain:</h6>
+                        <ol class="mb-0">
+                            <li>Log into your Salesforce org</li>
+                            <li>Look at the URL in your browser's address bar</li>
+                            <li>Copy the domain part (e.g., <code>yourcompany.my.salesforce.com</code>)</li>
+                            <li>Paste it in the field above without "https://"</li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block js_scripts %}
+<script type="module" src="/static/salesforce_setup.js"></script>
+{% endblock %}

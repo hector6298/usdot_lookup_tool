@@ -1,5 +1,5 @@
 import logging
-from sqlmodel import Session
+from sqlmodel import Session, select
 from app.models.user_org_membership import AppUser, AppOrg, UserOrgMembership
 from fastapi import HTTPException
 
@@ -68,3 +68,44 @@ def save_user_org_membership(db: Session, login_info) -> AppUser:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
     
+
+def get_sf_domain_by_org_id(org_id: str, db: Session) -> str:
+    """Get Salesforce domain for the organization."""
+    try:
+        statement = select(AppOrg).where(AppOrg.org_id == org_id)
+        org = db.exec(statement).first()
+
+        if org and org.sf_domain:
+            logger.info(f"🔍 Found Salesforce domain for org {org_id}: {org.sf_domain}")
+            return org.sf_domain
+        
+        logger.warning(f"No Salesforce domain configured for organization {org_id}")
+        return None
+
+    except Exception as e:
+        logger.error(f"Error getting Salesforce domain for org {org_id}: {e}")
+        raise HTTPException(status_code=500, detail="Internal Server Error")
+
+
+def save_sf_domain_for_org(db: Session, org_id: str, sf_domain: str) -> AppOrg:
+    """Save Salesforce domain for an organization."""
+    try:
+        statement = select(AppOrg).where(AppOrg.org_id == org_id)
+        org = db.exec(statement).first()
+        
+        if not org:
+            logger.error(f"Organization {org_id} not found")
+            raise HTTPException(status_code=404, detail="Organization not found")
+        
+        org.sf_domain = sf_domain
+        db.add(org)
+        db.commit()
+        db.refresh(org)
+        
+        logger.info(f"✅ Salesforce domain {sf_domain} saved for org {org_id}")
+        return org
+        
+    except Exception as e:
+        logger.error(f"❌ Error saving Salesforce domain for org {org_id}: {e}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
