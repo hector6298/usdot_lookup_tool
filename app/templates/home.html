@@ -129,8 +129,8 @@
 
         .features {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: 24px;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
             text-align: center;
         }
 
@@ -370,6 +370,13 @@
         }
 
         /* Responsive design */
+        @media (max-width: 1024px) {
+            .features {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 20px;
+            }
+        }
+
         @media (max-width: 768px) {
             .main-container {
                 padding: 0 10px;
@@ -390,7 +397,7 @@
             }
 
             .features {
-                grid-template-columns: 1fr;
+                grid-template-columns: repeat(2, 1fr);
                 gap: 16px;
             }
 
@@ -430,7 +437,7 @@
     <div class="card hero-card">
         <img src="/static/logo/app_logo2.jpg" alt="USDOT Lookup Tool Logo" class="logo-img">
         <h1>DotAI</h1>
-        <h2 class="subtitle">Automate and scale your USDOT leads pipeline and sync to your CRM platform</h2>
+        <h2 class="subtitle">Stop all tedius data entry and scale your USDOT leads pipeline!</h2>
         
         <div class="btn-container">
             <a href="/login" class="btn login"><i class="fas fa-sign-in-alt"></i> Login</a>
@@ -438,7 +445,7 @@
         </div>
         
         <div class="enterprise-note">
-            <p><strong>Multi-user organizations?</strong> Talk to us!</p>
+            <p><strong>Multi-user organizations?</strong> Request Org group here!</p>
         </div>
     </div>
 
@@ -450,17 +457,22 @@
             <a href="#ai-vision" class="feature" onclick="scrollToSection('ai-vision')">
                 <i class="fas fa-camera"></i>
                 <h3>AI Vision</h3>
-                <p>Automatically extract USDOT numbers from images or input them manually.</p>
+                <p>Automatically extracts USDOT IDs from images.</p>
             </a>
             <a href="#safer-lookup" class="feature" onclick="scrollToSection('safer-lookup')">
                 <i class="fas fa-search"></i>
                 <h3>SAFER Web Lookups</h3>
-                <p>Instant automated data retrieval from FMCSA databases.</p>
+                <p>Instant data retrieval from FMCSA databases.</p>
             </a>
             <a href="#crm-integration" class="feature" onclick="scrollToSection('crm-integration')">
                 <i class="fas fa-sync-alt"></i>
                 <h3>CRM Integration</h3>
-                <p>Seamless Salesforce integration with just a few clicks.</p>
+                <p>Salesforce integration with just a few clicks.</p>
+            </a>
+            <a href="#multi-user" class="feature" onclick="scrollToSection('multi-user')">
+                <i class="fas fa-users"></i>
+                <h3>Multi-User Teams</h3>
+                <p>Centralized collaboration with no duplicated work.</p>
             </a>
         </div>
     </div>
@@ -555,6 +567,38 @@
                     <div class="step-number">3</div>
                     <div class="step-text">
                         <strong>Automatic Sync:</strong> Hit the "CRM Sync" button and watch carrier records flow directly into your Salesforce pipeline
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Multi-User Organizations Card -->
+    <div id="multi-user" class="card how-it-works-card">
+        <div class="how-it-works-icon">
+            <i class="fas fa-users"></i>
+        </div>
+        <div class="how-it-works-content">
+            <h2 class="how-it-works-title">Multi-User Organizations</h2>
+            <h3>Centralized collaboration for your entire team</h3>
+            
+            <div class="steps-list">
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <div class="step-text">
+                        <strong>Shared Dashboard:</strong> All carrier records and Salesforce syncs appear in one centralized view
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <div class="step-text">
+                        <strong>Team Collaboration:</strong> Multiple users can access and work with the same lead database
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <div class="step-text">
+                        <strong>No Duplicated Work:</strong> Say goodbye to redundant efforts across team members
                     </div>
                 </div>
             </div>
