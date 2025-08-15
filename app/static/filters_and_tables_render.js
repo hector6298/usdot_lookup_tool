@@ -48,9 +48,11 @@ export const Filters = {
                 // Update the offset for the next batch
                 Filters.offset += Filters.limit;
             } else {
+                Notifications.error("Failed to fetch data from server.");
                 console.error("Failed to fetch data");
             }
         } catch (error) {
+            Notifications.error("Network error occurred while fetching data.");
             console.error("Error fetching data:", error);
         } finally {
             Filters.isLoading = false;
@@ -105,22 +107,39 @@ export const Filters = {
         const selected = Array.from(document.querySelectorAll(".carrier-select:checked"))
             .map(cb => cb.getAttribute("data-usdot"));
         if (selected.length === 0) {
-            alert("Please select at least one carrier to sync.");
+            Notifications.warning("Please select at least one carrier to sync.");
             return;
         }
-        const response = await fetch("/salesforce/upload_carriers", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ carriers_usdot: selected })
-        });
-        if (response.ok) {
-            alert("Sync request sent!");
-            // Optionally, reload table data here
-            Filters.offset = 0;
-            Filters.hasMoreData = true;
-            Filters.fetchData(false);
-        } else {
-            alert("Failed to sync to Salesforce.");
+        
+        // Show loading notification
+        const loadingNotification = Notifications.info("Syncing carriers to Salesforce...", { autoHide: false });
+        
+        try {
+            const response = await fetch("/salesforce/upload_carriers", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ carriers_usdot: selected })
+            });
+            
+            // Remove loading notification
+            Notifications.remove(loadingNotification);
+            
+            if (response.ok) {
+                Notifications.success(`Successfully synced ${selected.length} carrier(s) to Salesforce!`);
+                // Optionally, reload table data here
+                Filters.offset = 0;
+                Filters.hasMoreData = true;
+                Filters.fetchData(false);
+            } else {
+                const errorData = await response.json().catch(() => ({}));
+                const errorMessage = errorData.detail || "Failed to sync carriers to Salesforce.";
+                Notifications.error(errorMessage);
+            }
+        } catch (error) {
+            // Remove loading notification
+            Notifications.remove(loadingNotification);
+            Notifications.error("Network error occurred while syncing to Salesforce.");
+            console.error("Sync error:", error);
         }
     },
 
