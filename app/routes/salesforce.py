@@ -7,8 +7,16 @@ from app.crud.oauth import get_valid_salesforce_token, upsert_salesforce_token, 
 from app.crud.crm_object_sync_history import create_sync_history_record
 from app.crud.crm_object_sync_status import update_crm_sync_status
 from app.crud.user_org_membership import get_sf_domain_by_org_id, save_sf_domain_for_org
+from app.crud.salesforce_field_mapping import (
+    get_field_mappings_by_org, 
+    save_field_mapping, 
+    delete_field_mapping, 
+    get_field_mapping_dict,
+    create_default_field_mappings
+)
 
 from app.models.carrier_data import CarrierData
+from app.models.salesforce_field_mapping import SalesforceFieldMapping
 from datetime import datetime
 import urllib.parse
 import httpx
@@ -161,6 +169,104 @@ async def disconnect_salesforce(request: Request,
     return {"detail": "Disconnected from Salesforce"}
 
 
+@router.get("/salesforce/field-mapping")
+async def field_mapping_page(request: Request, db: Session = Depends(get_db)):
+    """Display the field mapping configuration page."""
+    if 'userinfo' not in request.session:
+        return RedirectResponse(url="/login")
+    
+    org_id = request.session["userinfo"].get("org_id", request.session["userinfo"]["sub"])
+    
+    # Get existing mappings
+    mappings = get_field_mappings_by_org(db, org_id)
+    
+    # If no mappings exist, create defaults
+    if not mappings:
+        mappings = create_default_field_mappings(db, org_id)
+    
+    context = {
+        "request": request,
+        "mappings": mappings,
+        "available_carrier_fields": SalesforceFieldMapping.AVAILABLE_CARRIER_FIELDS,
+        "standard_salesforce_fields": SalesforceFieldMapping.STANDARD_SALESFORCE_FIELDS
+    }
+    
+    return templates.TemplateResponse("salesforce_field_mapping.html", context)
+
+
+@router.post("/salesforce/field-mapping")
+async def save_field_mappings(request: Request, db: Session = Depends(get_db)):
+    """Save field mapping configurations."""
+    if 'userinfo' not in request.session:
+        return JSONResponse(status_code=401, content={"detail": "User not authenticated."})
+    
+    org_id = request.session["userinfo"].get("org_id", request.session["userinfo"]["sub"])
+    
+    try:
+        form_data = await request.form()
+        total_mappings = int(form_data.get("total_mappings", 0))
+        
+        # Clear existing mappings
+        existing_mappings = get_field_mappings_by_org(db, org_id)
+        for mapping in existing_mappings:
+            mapping.is_active = False
+        db.commit()
+        
+        # Save new mappings
+        saved_count = 0
+        for i in range(1, total_mappings + 1):
+            carrier_field = form_data.get(f"carrier_field_{i}")
+            salesforce_field = form_data.get(f"salesforce_field_{i}")
+            custom_field = form_data.get(f"custom_salesforce_field_{i}")
+            field_type = form_data.get(f"field_type_{i}", "text")
+            
+            # Use custom field if salesforce field is empty
+            if not salesforce_field and custom_field:
+                salesforce_field = custom_field
+            
+            if carrier_field and salesforce_field:
+                save_field_mapping(
+                    db=db,
+                    org_id=org_id,
+                    carrier_field=carrier_field,
+                    salesforce_field=salesforce_field,
+                    field_type=field_type
+                )
+                saved_count += 1
+        
+        logger.info(f"Saved {saved_count} field mappings for org {org_id}")
+        return RedirectResponse(url="/salesforce/field-mapping?success=1", status_code=303)
+        
+    except Exception as e:
+        logger.error(f"Error saving field mappings for org {org_id}: {e}")
+        return RedirectResponse(url="/salesforce/field-mapping?error=1", status_code=303)
+
+
+@router.post("/salesforce/field-mapping/reset")
+async def reset_field_mappings(request: Request, db: Session = Depends(get_db)):
+    """Reset field mappings to defaults."""
+    if 'userinfo' not in request.session:
+        return JSONResponse(status_code=401, content={"detail": "User not authenticated."})
+    
+    org_id = request.session["userinfo"].get("org_id", request.session["userinfo"]["sub"])
+    
+    try:
+        # Clear existing mappings
+        existing_mappings = get_field_mappings_by_org(db, org_id)
+        for mapping in existing_mappings:
+            mapping.is_active = False
+        db.commit()
+        
+        # Create default mappings
+        create_default_field_mappings(db, org_id)
+        
+        return JSONResponse(content={"detail": "Default mappings created successfully."})
+        
+    except Exception as e:
+        logger.error(f"Error resetting field mappings for org {org_id}: {e}")
+        return JSONResponse(status_code=500, content={"detail": "Error resetting field mappings."})
+
+
 @router.post("/salesforce/upload_carriers")
 async def upload_carriers_to_salesforce(
     request: Request,
@@ -189,7 +295,14 @@ async def upload_carriers_to_salesforce(
         else:
             logger.info(f"Found {len(carriers)} carriers to upload to Salesforce.")
 
-        # 3. Use Salesforce Composite API to insert accounts
+        # 3. Get field mappings for this organization
+        field_mappings = get_field_mapping_dict(db, org_id)
+        if not field_mappings:
+            logger.warning(f"No field mappings configured for org {org_id}. Creating defaults.")
+            create_default_field_mappings(db, org_id)
+            field_mappings = get_field_mapping_dict(db, org_id)
+
+        # 4. Use Salesforce Composite API to insert accounts
         sf_instance_url = token_obj.token_data.get("instance_url")
         if not sf_instance_url:
             return JSONResponse(status_code=500, content={"detail": "Salesforce instance URL missing from token data."})
@@ -203,72 +316,33 @@ async def upload_carriers_to_salesforce(
         # Salesforce composite API for bulk insert
         records = []
         for carrier in carriers:
-            records.append({
-                "attributes": {"type": "Account", "referenceId": f"carrier_{carrier.usdot}"},
-                "Name": carrier.legal_name or carrier.dba_name or "Unknown Carrier",
-                "Phone": carrier.phone,
-                "BillingStreet": carrier.physical_address,
-                "ShippingStreet": carrier.mailing_address,
-                "BillingCity": None,  # Add if you have city info
-                "BillingState": None,  # Add if you have state info
-                "BillingPostalCode": None,  # Add if you have zip info
-                "AccountNumber": carrier.usdot,
-                "Type": carrier.entity_type,
-                "Description": carrier.usdot_status,
-                # Custom fields (adjust names to match your Salesforce org)
-                #"MC_MX_FF_Numbers__c": carrier.mc_mx_ff_numbers,
-                #"State_Carrier_ID__c": carrier.state_carrier_id,
-                #"Power_Units__c": carrier.power_units,
-                #"Drivers__c": carrier.drivers,
-                #"MCS_150_Form_Date__c": carrier.mcs_150_form_date,
-                #"MCS_150_Mileage_Year_Mileage__c": carrier.mcs_150_mileage_year_mileage,
-                #"MCS_150_Mileage_Year_Year__c": carrier.mcs_150_mileage_year_year,
-                #"Out_Of_Service_Date__c": carrier.out_of_service_date,
-                #"Operating_Authority_Status__c": carrier.operating_authority_status,
-                #"Operation_Classification__c": carrier.operation_classification,
-                #"Carrier_Operation__c": carrier.carrier_operation,
-                #"HM_Shipper_Operation__c": carrier.hm_shipper_operation,
-                #"Cargo_Carried__c": carrier.cargo_carried,
-                # US Inspection/Crash fields
-                #"USA_Vehicle_Inspections__c": carrier.usa_vehicle_inspections,
-                #"USA_Vehicle_Out_Of_Service__c": carrier.usa_vehicle_out_of_service,
-                #"USA_Vehicle_Out_Of_Service_Percent__c": carrier.usa_vehicle_out_of_service_percent,
-                #"USA_Vehicle_National_Average__c": carrier.usa_vehicle_national_average,
-                #"USA_Driver_Inspections__c": carrier.usa_driver_inspections,
-                #"USA_Driver_Out_Of_Service__c": carrier.usa_driver_out_of_service,
-                #"USA_Driver_Out_Of_Service_Percent__c": carrier.usa_driver_out_of_service_percent,
-                #"USA_Driver_National_Average__c": carrier.usa_driver_national_average,
-                #"USA_Hazmat_Inspections__c": carrier.usa_hazmat_inspections,
-                #"USA_Hazmat_Out_Of_Service__c": carrier.usa_hazmat_out_of_service,
-                #"USA_Hazmat_Out_Of_Service_Percent__c": carrier.usa_hazmat_out_of_service_percent,
-                #"USA_Hazmat_National_Average__c": carrier.usa_hazmat_national_average,
-                #"USA_IEP_Inspections__c": carrier.usa_iep_inspections,
-                #"USA_IEP_Out_Of_Service__c": carrier.usa_iep_out_of_service,
-                #"USA_IEP_Out_Of_Service_Percent__c": carrier.usa_iep_out_of_service_percent,
-                #"USA_IEP_National_Average__c": carrier.usa_iep_national_average,
-                #"USA_Crashes_Tow__c": carrier.usa_crashes_tow,
-                #"USA_Crashes_Fatal__c": carrier.usa_crashes_fatal,
-                #"USA_Crashes_Injury__c": carrier.usa_crashes_injury,
-                #"USA_Crashes_Total__c": carrier.usa_crashes_total,
-                # Canada Inspection/Crash fields
-                #"Canada_Driver_Out_Of_Service__c": carrier.canada_driver_out_of_service,
-                #"Canada_Driver_Out_Of_Service_Percent__c": carrier.canada_driver_out_of_service_percent,
-                #"Canada_Driver_Inspections__c": carrier.canada_driver_inspections,
-                #"Canada_Vehicle_Out_Of_Service__c": carrier.canada_vehicle_out_of_service,
-                #"Canada_Vehicle_Out_Of_Service_Percent__c": carrier.canada_vehicle_out_of_service_percent,
-                #"Canada_Vehicle_Inspections__c": carrier.canada_vehicle_inspections,
-                #"Canada_Crashes_Tow__c": carrier.canada_crashes_tow,
-                #"Canada_Crashes_Fatal__c": carrier.canada_crashes_fatal,
-                #"Canada_Crashes_Injury__c": carrier.canada_crashes_injury,
-                #"Canada_Crashes_Total__c": carrier.canada_crashes_total,
-                # Safety fields
-                #"Safety_Rating_Date__c": carrier.safety_rating_date,
-                #"Safety_Review_Date__c": carrier.safety_review_date,
-                #"Safety_Rating__c": carrier.safety_rating,
-                #"Safety_Type__c": carrier.safety_type,
-                #"Latest_Update__c": carrier.latest_update,
-                "URL__c": carrier.url,
-            })
+            record = {
+                "attributes": {"type": "Account", "referenceId": f"carrier_{carrier.usdot}"}
+            }
+            
+            # Map fields using the configured mappings
+            for carrier_field, salesforce_field in field_mappings.items():
+                carrier_value = getattr(carrier, carrier_field, None)
+                if carrier_value is not None:
+                    # Convert values based on field type if needed
+                    if isinstance(carrier_value, (int, float)) and salesforce_field in ["Phone"]:
+                        # Convert numeric phone to string
+                        carrier_value = str(carrier_value)
+                    elif carrier_field in ["dba_name", "legal_name"] and salesforce_field == "Name":
+                        # Use legal_name preferentially, fallback to dba_name
+                        if carrier_field == "legal_name" and carrier_value:
+                            record[salesforce_field] = carrier_value
+                        elif carrier_field == "dba_name" and carrier_value and "Name" not in record:
+                            record[salesforce_field] = carrier_value
+                        continue
+                    
+                    record[salesforce_field] = carrier_value
+            
+            # Ensure we have a Name field (required for Account)
+            if "Name" not in record:
+                record["Name"] = carrier.legal_name or carrier.dba_name or f"Carrier {carrier.usdot}"
+            
+            records.append(record)
 
         payload = {
             "records": records

@@ -40,12 +40,11 @@ def save_user_org_membership(db: Session, login_info) -> AppUser:
             for key, value in user_record.dict().items():
                 setattr(existing_user, key, value)
             user_record = existing_user
+            
         if existing_org:
-            logger.info(f"🔍 Org with ID {org_record.org_id} already exists. Updating fields.")
-            # update fields
-            for key, value in org_record.dict().items():
-                setattr(existing_org, key, value)
+            logger.info(f"🔍 Org with ID {org_record.org_id} already exists. Skipping.")
             org_record = existing_org
+
         if existing_membership:
             logger.info(f"🔍 Membership for user {user_record.user_id} and org {org_record.org_id} already exists. Skipping.")
             membership_record = existing_membership
