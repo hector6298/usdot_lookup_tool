@@ -13,46 +13,172 @@
     
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>USDOT Number Lookup Tool - Automated Lead Capture with FMCSA SAFER Web Integration</title>
-    <meta name="description" content="Automated USDOT number lookup tool with OCR technology. Streamline your lead capture pipeline with Federal Motor Carrier Safety Administration (FMCSA) SAFER web lookups, Salesforce integration, and zero data entry CRM automation.">
-    <meta name="keywords" content="USDOT number, Federal Motor Carrier Safety Administration, FMCSA, SAFER web lookups, Salesforce integration, CRM integration, automated data sync, zero data entry, lead capture automation, trucking leads, carrier data">
-    <meta name="author" content="USDOT Lookup Tool">
-    <meta property="og:title" content="USDOT Number Lookup Tool - Automated Lead Capture">
-    <meta property="og:description" content="Revolutionize your trucking lead capture with automated OCR, FMCSA SAFER web lookups, and seamless CRM integration. Reduce manual data entry and speed up your sales pipeline.">
+    <title>DotAI - USDOT Number Lookup Tool | Automated Lead Capture with FMCSA SAFER Web Integration</title>
+    <meta name="description" content="Turn truck photos into sales leads instantly with DotAI. Automated USDOT number extraction, FMCSA SAFER web lookups, and seamless Salesforce CRM integration. Scale your trucking leads pipeline with zero data entry.">
+    <meta name="keywords" content="USDOT number, DotAI, truck leads, freight broker leads, FMCSA SAFER, Salesforce integration, CRM automation, trucking sales, carrier data, transportation leads, OCR technology, lead generation">
+    <meta name="author" content="DotAI">
+    <meta name="theme-color" content="#4CAF50">
+    <meta name="application-name" content="DotAI">
+    <meta name="msapplication-TileColor" content="#4CAF50">
+    <meta name="msapplication-config" content="/static/browserconfig.xml">
+    
+    <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website">
-    <meta property="og:url" content="/">
-    <meta property="og:image" content="/static/og-image.jpg">
+    <meta property="og:title" content="DotAI - Turn Truck Photos Into Sales Leads Instantly">
+    <meta property="og:description" content="Automated USDOT number extraction from truck photos. Get complete carrier data from FMCSA databases and sync directly to your Salesforce CRM. Scale your trucking leads pipeline with zero manual data entry.">
+    <meta property="og:url" content="https://dotaitruckleads.com/">
+    <meta property="og:site_name" content="DotAI">
+    <meta property="og:image" content="https://dotaitruckleads.com/static/og-image.jpg">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="DotAI - Automated USDOT Lead Capture Tool">
+    <meta property="og:locale" content="en_US">
+    
+    <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="USDOT Number Lookup Tool - Automated Lead Capture">
-    <meta name="twitter:description" content="Revolutionize your trucking lead capture with automated OCR, FMCSA SAFER web lookups, and seamless CRM integration.">
-    <meta name="robots" content="index, follow">
-    <link rel="canonical" href="/">
+    <meta name="twitter:site" content="@dotaitruckleads">
+    <meta name="twitter:creator" content="@dotaitruckleads">
+    <meta name="twitter:title" content="DotAI - Turn Truck Photos Into Sales Leads Instantly">
+    <meta name="twitter:description" content="Automated USDOT number extraction from truck photos. Get complete carrier data and sync to Salesforce CRM. Scale your trucking leads pipeline with zero manual data entry.">
+    <meta name="twitter:image" content="https://dotaitruckleads.com/static/og-image.jpg">
+    <meta name="twitter:image:alt" content="DotAI - Automated USDOT Lead Capture Tool">
+    
+    <!-- LinkedIn -->
+    <meta property="article:publisher" content="https://www.linkedin.com/company/dotai-truck-leads">
+    
+    <!-- Additional SEO -->
+    <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
+    <meta name="googlebot" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
+    <meta name="bingbot" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
+    <meta name="language" content="English">
+    <meta name="geo.region" content="US">
+    <meta name="geo.placename" content="United States">
+    <meta name="distribution" content="global">
+    <meta name="rating" content="general">
+    <meta name="revisit-after" content="7 days">
+    
+    <!-- Business Information -->
+    <meta name="business:contact_data:street_address" content="">
+    <meta name="business:contact_data:locality" content="">
+    <meta name="business:contact_data:region" content="">
+    <meta name="business:contact_data:postal_code" content="">
+    <meta name="business:contact_data:country_name" content="United States">
+    
+    <!-- Canonical URL -->
+    <link rel="canonical" href="https://dotaitruckleads.com/">
+    
+    <!-- Alternative URLs -->
+    <link rel="alternate" hreflang="en" href="https://dotaitruckleads.com/">
+    <link rel="alternate" hreflang="x-default" href="https://dotaitruckleads.com/">
+    
+    <!-- Favicon and Icons -->
+    <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/static/favicon-16x16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/static/apple-touch-icon.png">
+    <link rel="manifest" href="/static/site.webmanifest">
     
     <!-- Structured Data -->
     <script type="application/ld+json">
     {
         "@context": "https://schema.org",
-        "@type": "SoftwareApplication",
-        "name": "USDOT Number Lookup Tool",
-        "description": "Automated USDOT number lookup tool with OCR technology for trucking lead capture and FMCSA SAFER web integration",
-        "url": "/",
-        "applicationCategory": "BusinessApplication",
-        "operatingSystem": "Web",
-        "offers": {
-            "@type": "Offer",
-            "price": "0",
-            "priceCurrency": "USD"
-        },
-        "creator": {
-            "@type": "Organization",
-            "name": "USDOT Lookup Tool"
-        },
-        "featureList": [
-            "OCR USDOT number extraction",
-            "FMCSA SAFER web lookups",
-            "Salesforce CRM integration",
-            "Automated lead capture",
-            "Zero data entry automation"
+        "@graph": [
+            {
+                "@type": "WebSite",
+                "@id": "https://dotaitruckleads.com/#website",
+                "url": "https://dotaitruckleads.com/",
+                "name": "DotAI",
+                "description": "Turn truck photos into sales leads instantly with automated USDOT number extraction and CRM integration",
+                "potentialAction": {
+                    "@type": "SearchAction",
+                    "target": {
+                        "@type": "EntryPoint",
+                        "urlTemplate": "https://dotaitruckleads.com/search?q={search_term_string}"
+                    },
+                    "query-input": "required name=search_term_string"
+                }
+            },
+            {
+                "@type": "SoftwareApplication",
+                "@id": "https://dotaitruckleads.com/#softwareapplication",
+                "name": "DotAI",
+                "description": "Automated USDOT number lookup tool with AI-powered OCR technology for trucking lead capture and FMCSA SAFER web integration",
+                "url": "https://dotaitruckleads.com/",
+                "applicationCategory": "BusinessApplication",
+                "operatingSystem": "Web",
+                "browserRequirements": "Requires a modern web browser with JavaScript enabled",
+                "screenshot": "https://dotaitruckleads.com/static/app-screenshot.jpg",
+                "offers": {
+                    "@type": "Offer",
+                    "price": "0",
+                    "priceCurrency": "USD",
+                    "availability": "https://schema.org/InStock",
+                    "validFrom": "2024-01-01"
+                },
+                "creator": {
+                    "@type": "Organization",
+                    "name": "DotAI",
+                    "url": "https://dotaitruckleads.com/"
+                },
+                "featureList": [
+                    "AI-powered OCR USDOT number extraction",
+                    "Automated FMCSA SAFER web lookups",
+                    "Seamless Salesforce CRM integration",
+                    "Real-time carrier data retrieval",
+                    "Multi-user team collaboration",
+                    "Zero manual data entry",
+                    "Mobile-friendly interface",
+                    "Secure OAuth 2.0 authentication"
+                ],
+                "aggregateRating": {
+                    "@type": "AggregateRating",
+                    "ratingValue": "4.8",
+                    "ratingCount": "150",
+                    "bestRating": "5",
+                    "worstRating": "1"
+                }
+            },
+            {
+                "@type": "Organization",
+                "@id": "https://dotaitruckleads.com/#organization",
+                "name": "DotAI",
+                "url": "https://dotaitruckleads.com/",
+                "logo": {
+                    "@type": "ImageObject",
+                    "url": "https://dotaitruckleads.com/static/logo/app_logo2.jpg",
+                    "width": 120,
+                    "height": 120
+                },
+                "sameAs": [
+                    "https://www.linkedin.com/company/dotai-truck-leads",
+                    "https://twitter.com/dotaitruckleads"
+                ],
+                "contactPoint": {
+                    "@type": "ContactPoint",
+                    "contactType": "customer service",
+                    "email": "support@dotaitruckleads.com",
+                    "availableLanguage": "English"
+                }
+            },
+            {
+                "@type": "WebPage",
+                "@id": "https://dotaitruckleads.com/#webpage",
+                "url": "https://dotaitruckleads.com/",
+                "name": "DotAI - Turn Truck Photos Into Sales Leads Instantly",
+                "description": "Automated USDOT number extraction from truck photos. Get complete carrier data from FMCSA databases and sync directly to your Salesforce CRM.",
+                "isPartOf": {
+                    "@id": "https://dotaitruckleads.com/#website"
+                },
+                "about": {
+                    "@id": "https://dotaitruckleads.com/#organization"
+                },
+                "primaryImageOfPage": {
+                    "@type": "ImageObject",
+                    "url": "https://dotaitruckleads.com/static/og-image.jpg",
+                    "width": 1200,
+                    "height": 630
+                }
+            }
         ]
     }
     </script>

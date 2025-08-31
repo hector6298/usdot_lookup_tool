@@ -1,0 +1,19 @@
+User-agent: *
+Allow: /
+
+# Allow crawling of main pages
+Allow: /login
+Allow: /signup
+Allow: /blog
+Allow: /privacy-policy
+Allow: /team-request
+
+# Disallow sensitive areas
+Disallow: /dashboards/
+Disallow: /salesforce/
+Disallow: /logout
+Disallow: /upload
+Disallow: /data/
+
+# Sitemap location
+Sitemap: https://dotaitruckleads.com/sitemap.xml

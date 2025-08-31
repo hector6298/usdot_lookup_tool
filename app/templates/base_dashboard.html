@@ -122,9 +122,23 @@
             #main-layout {
                 flex-direction: column !important;
             }
+            .main-content {
+                margin-left: 0 !important;
+            }
         }
         @media (min-width: 992px) {
             .offcanvas { display: none !important; }
+            nav.sidebar-desktop {
+                position: fixed !important;
+                top: 0;
+                left: 0;
+                height: 100vh;
+                overflow-y: auto;
+                z-index: 1000;
+            }
+            .main-content {
+                margin-left: 250px;
+            }
         }
     </style>
 </head>
@@ -262,7 +276,7 @@
     </div>
 
     <!-- Main Content -->
-    <div class="flex-grow-1" style="background: linear-gradient(135deg, #23233a 0%, #2d2d4d 100%);">
+    <div class="flex-grow-1 main-content" style="background: linear-gradient(135deg, #23233a 0%, #2d2d4d 100%);">
         <!-- Hamburger button for mobile -->
         <button class="btn btn-primary d-lg-none m-2" type="button" data-bs-toggle="offcanvas" data-bs-target="#sidebarOffcanvas" aria-controls="sidebarOffcanvas">
             <i class="bi bi-list"></i>
