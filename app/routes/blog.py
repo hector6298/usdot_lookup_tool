@@ -14,3 +14,8 @@ async def blog_index(request: Request):
 async def blog_post_lead_capture(request: Request):
     """Serve the blog post about automated lead capture pipeline."""
     return templates.TemplateResponse("blog_post_lead_capture.html", {"request": request})
+
+@router.get("/blog/case-study-carrier-data-roi", name="blog_post_case_study", response_class=HTMLResponse)
+async def blog_post_case_study(request: Request):
+    """Serve the case study blog post about carrier data ROI."""
+    return templates.TemplateResponse("blog_post_case_study.html", {"request": request})
